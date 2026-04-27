@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { Lead, ScraperStatus, TargetUrl } from '../types';
-import { GEMINI_API_URL, fetchWithRetry } from '../lib/gemini';
+import { GEMINI_API_URL, fetchWithRetry, isGeminiEnabled } from '../lib/gemini';
 
 export function useScraper() {
   const [status, setStatus] = useState<ScraperStatus>('idle');
@@ -11,6 +11,12 @@ export function useScraper() {
     setStatus('scraping');
     setLeads([]);
     setErrorMsg('');
+
+    if (!isGeminiEnabled) {
+      setErrorMsg('Gemini API key not configured. Add VITE_GEMINI_API_KEY in Cloudflare Pages > Variables and Secrets, then redeploy.');
+      setStatus('error');
+      return;
+    }
 
     try {
       await new Promise((r) => setTimeout(r, 2000));
@@ -58,7 +64,8 @@ export function useScraper() {
       setStatus('complete');
     } catch (err) {
       console.error(err);
-      setErrorMsg('Failed to connect to the scraping pipeline. Check your network.');
+      const msg = err instanceof Error ? err.message : 'Failed to connect to the scraping pipeline. Check your network.';
+      setErrorMsg(msg);
       setStatus('error');
     }
   };

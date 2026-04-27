@@ -1,4 +1,4 @@
-import { Activity, Users } from 'lucide-react';
+import { Activity, AlertCircle, Users } from 'lucide-react';
 import { useState } from 'react';
 import { DEFAULT_KEYWORDS } from '../../constants';
 import { useScraper } from '../../hooks/useScraper';
@@ -20,7 +20,7 @@ export default function ScraperView({
 }: ScraperViewProps) {
   const [niche, setNiche] = useState('');
   const [keywords, setKeywords] = useState(DEFAULT_KEYWORDS);
-  const { status, leads, runScraper } = useScraper();
+  const { status, leads, errorMsg, runScraper } = useScraper();
 
   const handleNicheChange = (v: string) => {
     setNiche(v);
@@ -59,8 +59,8 @@ export default function ScraperView({
                 { label: 'Scoring Lead Intent', active: status === 'filtering', done: status === 'complete' },
               ].map(({ label, active, done }) => (
                 <div key={label} className="flex items-center gap-3">
-                  <div className={`w-3 h-3 rounded-full ${active ? 'bg-blue-500 animate-pulse' : done ? 'bg-green-500' : 'bg-slate-200'}`} />
-                  <span className={`text-sm ${active ? 'text-slate-800 font-medium' : 'text-slate-500'}`}>{label}</span>
+                  <div className={`${active ? 'bg-blue-500 animate-pulse' : done ? 'bg-green-500' : 'bg-slate-200'}`} />
+                  <span className={`${active ? 'text-slate-800 font-medium' : 'text-slate-500'}`}>{label}</span>
                 </div>
               ))}
             </div>
@@ -69,6 +69,14 @@ export default function ScraperView({
       </div>
 
       <div className="lg:col-span-8">
+        {status === 'error' && errorMsg && (
+          <div className="h-full flex flex-col items-center justify-center border-2 border-dashed border-amber-300 rounded-2xl bg-amber-50 p-12 text-center min-h-[400px]">
+            <AlertCircle className="w-12 h-12 text-amber-500 mb-4" />
+            <h3 className="text-xl font-bold text-amber-800 mb-2">Scraper unavailable</h3>
+            <p className="text-amber-700 max-w-md">{errorMsg}</p>
+          </div>
+        )}
+
         {status === 'idle' && (
           <div className="h-full flex flex-col items-center justify-center border-2 border-dashed border-slate-300 rounded-2xl bg-white p-12 text-center min-h-[400px]">
             <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mb-4">
