@@ -1,5 +1,6 @@
-import { Bot, Database, LayoutDashboard, Search, Settings, Target } from 'lucide-react';
+import { Bot, Database, HardDrive, LayoutDashboard, Search, Settings, Target } from 'lucide-react';
 import type { ViewType } from '../../types';
+import { isFirebaseEnabled } from '../../lib/firebase';
 
 interface HeaderProps {
   activeView: ViewType;
@@ -39,10 +40,20 @@ export default function Header({ activeView, onViewChange }: HeaderProps) {
           ))}
         </div>
 
-        <span className="px-3 py-1 rounded-md bg-green-50 text-green-700 border border-green-200 flex items-center gap-2 text-sm font-medium">
-          <Database className="w-4 h-4" />
-          Cloud Sync On
-        </span>
+        {isFirebaseEnabled ? (
+          <span className="px-3 py-1 rounded-md bg-green-50 text-green-700 border border-green-200 flex items-center gap-2 text-sm font-medium">
+            <Database className="w-4 h-4" />
+            Cloud Sync On
+          </span>
+        ) : (
+          <span
+            className="px-3 py-1 rounded-md bg-amber-50 text-amber-700 border border-amber-200 flex items-center gap-2 text-sm font-medium"
+            title="Saved to this browser only. Set Firebase env vars to enable cloud sync."
+          >
+            <HardDrive className="w-4 h-4" />
+            Local Only
+          </span>
+        )}
       </div>
     </header>
   );
