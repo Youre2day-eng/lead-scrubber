@@ -1,0 +1,48 @@
+name: deploy-smoke-test
+
+on:
+  workflow_dispatch:
+    schedule:
+        # Hourly smoke test against the live deploy.
+            - cron: '17 * * * *'
+              push:
+                  branches: [main]
+
+                  jobs:
+                    smoke-test:
+                        name: Verify lead-scrubber.pages.dev serves the built bundle
+                            runs-on: ubuntu-latest
+                                steps:
+                                      - name: Wait briefly for any in-flight CF Pages deploy
+                                              if: github.event_name == 'push'
+                                                      run: sleep 60
+
+                                                            - name: Fetch deployed index.html
+                                                                    id: fetch
+                                                                            run: |
+                                                                                      set -euo pipefail
+                                                                                                # Cache-bust to make sure we are not reading a stale CDN copy.
+                                                                                                          URL="https://lead-scrubber.pages.dev/?cb=$(date +%s)"
+                                                                                                                    echo "Fetching $URL"
+                                                                                                                              curl --fail --silent --show-error --location "$URL" -o index.html
+                                                                                                                                        echo "--- Begin index.html ---"
+                                                                                                                                                  cat index.html
+                                                                                                                                                            echo "--- End index.html ---"
+                                                                                                                                                            
+                                                                                                                                                                  - name: Assert built bundle is referenced (not raw /src/*.tsx)
+                                                                                                                                                                          run: |
+                                                                                                                                                                                    set -euo pipefail
+                                                                                                                                                                                              if grep -E 'src="/src/' index.html >/dev/null; then
+                                                                                                                                                                                                          echo "::error::Production index.html references /src/* — Cloudflare Pages is serving the un-built dev template."
+                                                                                                                                                                                                                      exit 1
+                                                                                                                                                                                                                                fi
+                                                                                                                                                                                                                                          if ! grep -E 'src="/assets/index-[A-Za-z0-9_-]+\.js"' index.html >/dev/null; then
+                                                                                                                                                                                                                                                      echo "::error::Production index.html does not reference a hashed /assets/index-*.js bundle."
+                                                                                                                                                                                                                                                                  exit 1
+                                                                                                                                                                                                                                                                            fi
+                                                                                                                                                                                                                                                                                      if ! grep -E 'id="root"' index.html >/dev/null; then
+                                                                                                                                                                                                                                                                                                  echo "::error::Production index.html missing <div id=\"root\">."
+                                                                                                                                                                                                                                                                                                              exit 1
+                                                                                                                                                                                                                                                                                                                        fi
+                                                                                                                                                                                                                                                                                                                                  echo "OK: deployed index.html references hashed bundle and has #root mount point."
+                                                                                                                                                                                                                                                                                                                                  
