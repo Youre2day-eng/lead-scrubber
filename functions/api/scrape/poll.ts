@@ -1,8 +1,6 @@
 // functions/api/scrape/poll.ts
 // POST /api/scrape/poll
 // Body: { runId: string, debug?: boolean }
-// Checks Apify run status; if SUCCEEDED, fetches dataset items, normalizes them and writes leads.
-// debug=true returns the first 3 raw dataset items + the parsed normalize output (no writes) so we can see actor output shape.
 import { getApifyToken, getRun, getDatasetItems } from '../../lib/apify';
 import { scoreIntent, urgency, hashUrl } from '../../lib/score';
 
@@ -18,13 +16,19 @@ const json = (data: unknown, status = 200) => new Response(JSON.stringify(data),
 
 export const onRequestOptions: PagesFunction = async () => new Response(null, { status: 204, headers: cors });
 
-// Map an Apify dataset item from common scrapers (FB groups, Reddit, generic web) to our IngestPost shape.
-// Tries every common url/text/author/timestamp field name across actors.
+function isErrorStub(item: any): boolean {
+  if (!item || typeof item !== 'object') return true;
+  if (item.error || item.errorDescription) return true;
+  return false;
+}
+
 function normalize(item: any): { url: string; author?: string; group?: string; text?: string; timestamp?: string; city?: string; platform?: string } | null {
   if (!item || typeof item !== 'object') return null;
+  if (isErrorStub(item)) return null;
   const url = item.url || item.postUrl || item.permalink || item.permalinkUrl || item.link || item.facebookUrl || item.topLevelUrl;
   if (!url || typeof url !== 'string') return null;
   const text = item.text || item.message || item.body || item.title || item.selftext || item.content || item.description || item.postText || '';
+  if (!text || String(text).trim().length < 3) return null;
   const authorObj = item.author || item.user || item.owner;
   const author = (typeof authorObj === 'string' ? authorObj : authorObj?.name || authorObj?.username || authorObj?.fullName) || item.username || item.userName || '';
   const groupObj = item.group || item.community;
@@ -77,6 +81,9 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     });
   }
 
+  const errorItems = items.filter(isErrorStub);
+  const errorMessages = Array.from(new Set(errorItems.map((it: any) => it?.errorDescription || it?.error).filter(Boolean))).slice(0, 3);
+
   const keywords: string[] = record?.keywords || [];
   let saved = 0;
   let skipped = 0;
@@ -106,7 +113,8 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
 
   if (record) {
     record.ingested = (record.ingested || 0) + saved;
+    record.lastErrors = errorMessages;
     await env.LEADS.put('run:' + runId, JSON.stringify(record), { expirationTtl: 60 * 60 * 24 * 30 });
   }
-  return json({ status: 'SUCCEEDED', ingested: saved, skipped, total: items.length });
+  return json({ status: 'SUCCEEDED', ingested: saved, skipped, total: items.length, errors: errorMessages });
 };
