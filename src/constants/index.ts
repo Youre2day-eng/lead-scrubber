@@ -7,7 +7,9 @@ export const DEFAULT_PIPELINE_STAGES: PipelineStage[] = [
 ];
 
 export const DEFAULT_TARGET_URLS: TargetUrl[] = [
-  { id: '1', url: 'https://facebook.com/groups/local-business', type: 'facebook' },
+  { id: '1', url: 'https://www.reddit.com/r/forhire/', type: 'custom' },
+  { id: '2', url: 'https://www.reddit.com/r/slavelabour/', type: 'custom' },
+  { id: '3', url: 'https://www.reddit.com/r/HireaWriter/', type: 'custom' },
 ];
 
 export const DEFAULT_KEYWORDS = 'ISO, looking for, any recommendations';
