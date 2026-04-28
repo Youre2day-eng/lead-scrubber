@@ -1,4 +1,4 @@
-export type ViewType = 'scraper' | 'pipeline' | 'agents' | 'settings';
+export type ViewType = 'scraper' | 'pipeline' | 'agents' | 'settings' | 'connections';
 export type ScraperStatus = 'idle' | 'scraping' | 'filtering' | 'complete' | 'error';
 export type DocumentType = 'contract' | 'invoice';
 export type DocumentStatus = 'draft' | 'sent';

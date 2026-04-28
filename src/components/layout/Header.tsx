@@ -1,4 +1,4 @@
-import { Bot, Database, HardDrive, LayoutDashboard, Search, Settings, Target } from 'lucide-react';
+import { Bot, Database, HardDrive, LayoutDashboard, Link2, Search, Settings, Target } from 'lucide-react';
 import type { ViewType } from '../../types';
 import { isFirebaseEnabled } from '../../lib/firebase';
 
@@ -11,6 +11,7 @@ const NAV: { id: ViewType; label: string; Icon: React.ElementType }[] = [
   { id: 'scraper', label: 'Scraper', Icon: Search },
   { id: 'pipeline', label: 'Pipeline', Icon: LayoutDashboard },
   { id: 'agents', label: 'Agents', Icon: Bot },
+  { id: 'connections', label: 'Connections', Icon: Link2 },
   { id: 'settings', label: 'Settings', Icon: Settings },
 ];
 
