@@ -8,6 +8,7 @@ import ScraperView from './components/scraper/ScraperView';
 import PipelineView from './components/pipeline/PipelineView';
 import AgentsView from './components/agents/AgentsView';
 import SettingsView from './components/settings/SettingsView';
+import ConnectionsView from './components/connections/ConnectionsView';
 import LeadModal from './components/modals/LeadModal';
 
 export default function App() {
@@ -66,6 +67,10 @@ export default function App() {
             onChange={setPipelineStages}
             onSave={saveStages}
           />
+        )}
+
+        {activeView === 'connections' && (
+          <ConnectionsView />
         )}
       </main>
 
