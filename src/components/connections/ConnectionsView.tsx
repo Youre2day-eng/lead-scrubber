@@ -1,12 +1,16 @@
 // src/components/connections/ConnectionsView.tsx
 // In-app page for pasting third-party tokens (Apify for now). Saves to KV via /api/connections.
-
 import { useEffect, useState } from 'react';
-import { CheckCircle2, Link as LinkIcon, ExternalLink, Loader2, AlertCircle, Trash2 } from 'lucide-react';
+import { CheckCircle2, Link as LinkIcon, ExternalLink, Loader2, AlertCircle, Trash2, Search } from 'lucide-react';
+import type { ViewType } from '../../types';
 
 type ApifyState = { connected: boolean; username?: string; savedAt?: string };
 
-export default function ConnectionsView() {
+interface Props {
+  onViewChange?: (v: ViewType) => void;
+}
+
+export default function ConnectionsView({ onViewChange }: Props) {
   const [apify, setApify] = useState<ApifyState>({ connected: false });
   const [token, setToken] = useState('');
   const [busy, setBusy] = useState(false);
@@ -19,8 +23,11 @@ export default function ConnectionsView() {
       const r = await fetch('/api/connections');
       const j = await r.json();
       setApify(j.apify || { connected: false });
-    } catch (e: any) { setErr(e?.message || 'failed to load'); }
-    finally { setLoading(false); }
+    } catch (e: any) {
+      setErr(e?.message || 'failed to load');
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => { refresh(); }, []);
@@ -39,33 +46,40 @@ export default function ConnectionsView() {
       if (!r.ok) throw new Error(j.error || ('HTTP ' + r.status));
       setApify(j.apify);
       setToken('');
-    } catch (e: any) { setErr(e?.message || 'failed'); }
-    finally { setBusy(false); }
+    } catch (e: any) {
+      setErr(e?.message || 'failed');
+    } finally {
+      setBusy(false);
+    }
   };
 
   const disconnect = async () => {
     if (!confirm('Remove the saved Apify token?')) return;
-    setBusy(true); setErr(null);
+    setBusy(true);
+    setErr(null);
     try {
       const r = await fetch('/api/connections?provider=apify', { method: 'DELETE' });
       if (!r.ok) throw new Error('HTTP ' + r.status);
       setApify({ connected: false });
-    } catch (e: any) { setErr(e?.message || 'failed'); }
-    finally { setBusy(false); }
+    } catch (e: any) {
+      setErr(e?.message || 'failed');
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
     <div className="max-w-3xl mx-auto">
       <div className="mb-6">
         <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><LinkIcon className="w-6 h-6 text-blue-500" /> Connections</h2>
-        <p className="text-slate-500">Paste API tokens once here. They're saved server-side and used by your scrapers.</p>
+        <p className="text-slate-500">Paste your Apify token once. The app picks the right scraper for any URL you give it (Facebook groups, Reddit, generic web). No more digging through actor names or env vars.</p>
       </div>
 
       <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6 mb-6">
         <div className="flex items-start justify-between mb-4">
           <div>
             <h3 className="text-lg font-bold text-slate-800">Apify</h3>
-            <p className="text-sm text-slate-500">Powers Facebook group / Reddit / web scrapers via the Apify Actor API.</p>
+            <p className="text-sm text-slate-500">One token, every scraper. Auto-routes Facebook / Reddit / Nextdoor / generic web URLs to the right Actor.</p>
           </div>
           {loading ? (
             <Loader2 className="w-5 h-5 animate-spin text-slate-400" />
@@ -80,18 +94,28 @@ export default function ConnectionsView() {
           <div className="space-y-3">
             <div className="text-sm text-slate-700">
               Signed in as <span className="font-mono font-semibold">{apify.username || 'unknown'}</span>
-              {apify.savedAt && <span className="text-slate-400"> — saved {new Date(apify.savedAt).toLocaleString()}</span>}
+              {apify.savedAt && <span className="text-slate-400"> &middot; saved {new Date(apify.savedAt).toLocaleString()}</span>}
             </div>
-            <button onClick={disconnect} disabled={busy} className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md border border-red-200 text-red-600 hover:bg-red-50 text-sm font-semibold disabled:opacity-50">
-              <Trash2 className="w-4 h-4" /> Disconnect
-            </button>
+            <div className="flex flex-wrap gap-2">
+              {onViewChange && (
+                <button
+                  onClick={() => onViewChange('scraper')}
+                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700"
+                >
+                  <Search className="w-4 h-4" /> Go run a scrape
+                </button>
+              )}
+              <button onClick={disconnect} disabled={busy} className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md border border-red-200 text-red-600 hover:bg-red-50 text-sm font-semibold disabled:opacity-50">
+                <Trash2 className="w-4 h-4" /> Disconnect
+              </button>
+            </div>
           </div>
         ) : (
           <div className="space-y-3">
             <ol className="text-sm text-slate-600 list-decimal pl-5 space-y-1">
-              <li>Sign up at <a className="text-blue-600 underline inline-flex items-center gap-1" href="https://apify.com" target="_blank" rel="noreferrer">apify.com <ExternalLink className="w-3 h-3" /></a> (free tier available).</li>
-              <li>Open <a className="text-blue-600 underline inline-flex items-center gap-1" href="https://console.apify.com/account/integrations" target="_blank" rel="noreferrer">Settings → Integrations <ExternalLink className="w-3 h-3" /></a> and copy your Personal API token.</li>
-              <li>Paste it below and click Save.</li>
+              <li>Sign up (or sign in) at <a className="text-blue-600 underline inline-flex items-center gap-1" href="https://apify.com" target="_blank" rel="noreferrer">apify.com <ExternalLink className="w-3 h-3" /></a> &mdash; free tier works.</li>
+              <li>Open <a className="text-blue-600 underline inline-flex items-center gap-1" href="https://console.apify.com/account/integrations" target="_blank" rel="noreferrer">Console &rarr; Settings &rarr; Integrations <ExternalLink className="w-3 h-3" /></a> and copy your <span className="font-mono">Personal API token</span>.</li>
+              <li>Paste it below and hit Save. We verify it against Apify before storing.</li>
             </ol>
             <input
               type="password"
@@ -101,7 +125,8 @@ export default function ConnectionsView() {
               className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 font-mono text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
             />
             <button onClick={save} disabled={busy} className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-blue-600 text-white font-semibold hover:bg-blue-700 disabled:opacity-50">
-              {busy && <Loader2 className="w-4 h-4 animate-spin" />} Save & verify
+              {busy && <Loader2 className="w-4 h-4 animate-spin" />}
+              Save & verify
             </button>
           </div>
         )}
