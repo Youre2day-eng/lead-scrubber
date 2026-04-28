@@ -70,7 +70,7 @@ export default function App() {
         )}
 
         {activeView === 'connections' && (
-          <ConnectionsView />
+          <ConnectionsView onViewChange={setActiveView} />
         )}
       </main>
 
