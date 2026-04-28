@@ -89,6 +89,10 @@ export function useScraper() {
             });
             if (!res.ok) continue;
             const data = await res.json();
+            if (Array.isArray(data?.errors) && data.errors.length) {
+              const msg = 'Apify: ' + data.errors.join(' | ');
+              setErrorMsg(prev => prev ? prev + ' | ' + msg : msg);
+            }
             if (data && (data.status === 'SUCCEEDED' || data.status === 'FAILED' || data.status === 'TIMED-OUT' || data.status === 'ABORTED')) {
               pending.delete(runId);
             }
