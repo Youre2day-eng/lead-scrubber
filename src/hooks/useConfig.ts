@@ -41,7 +41,14 @@ export function useConfig(user: User | null) {
                         const data = readLocal(user.uid);
                         if (data.pipelineStages) setPipelineStages(data.pipelineStages);
                         if (data.agents) setAgents(data.agents);
-                        if (data.targetUrls) setTargetUrls(data.targetUrls);
+                        if (data.targetUrls) {
+      const legacy = data.targetUrls.some((u: any) => u && u.url && u.url.includes('groups/local-business'));
+      if (legacy || data.targetUrls.length === 0) {
+        setTargetUrls(DEFAULT_TARGET_URLS);
+      } else {
+        setTargetUrls(data.targetUrls);
+      }
+    }
                         return;
                 }
 
@@ -51,7 +58,14 @@ export function useConfig(user: User | null) {
                 const data = snap.data() as Partial<AppConfig>;
                 if (data.pipelineStages) setPipelineStages(data.pipelineStages);
                 if (data.agents) setAgents(data.agents);
-                if (data.targetUrls) setTargetUrls(data.targetUrls);
+                if (data.targetUrls) {
+      const legacy = data.targetUrls.some((u: any) => u && u.url && u.url.includes('groups/local-business'));
+      if (legacy || data.targetUrls.length === 0) {
+        setTargetUrls(DEFAULT_TARGET_URLS);
+      } else {
+        setTargetUrls(data.targetUrls);
+      }
+    }
         });
   }, [user]);
 
