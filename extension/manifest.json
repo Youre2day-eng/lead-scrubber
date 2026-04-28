@@ -1,0 +1,31 @@
+{
+  "manifest_version": 3,
+  "name": "LeadScrubber",
+  "version": "0.1.0",
+  "description": "Reads matching posts from FB Groups you visit and ships them to your LeadScrubber dashboard.",
+  "permissions": [
+    "storage",
+    "activeTab",
+    "scripting"
+  ],
+  "host_permissions": [
+    "https://www.facebook.com/groups/*",
+    "https://lead-scrubber.pages.dev/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "LeadScrubber"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.facebook.com/groups/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "icons": {}
+}
