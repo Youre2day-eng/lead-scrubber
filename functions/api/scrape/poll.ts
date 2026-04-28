@@ -1,10 +1,8 @@
 // functions/api/scrape/poll.ts
 // POST /api/scrape/poll
-// Body: { runId: string }
-// Checks Apify run status; if SUCCEEDED, fetches dataset items, normalizes them into
-// IngestPost shape, scores intent and writes leads into KV under 'lead:<urlhash>'.
-// Returns { status, ingested?, total? }.
-
+// Body: { runId: string, debug?: boolean }
+// Checks Apify run status; if SUCCEEDED, fetches dataset items, normalizes them and writes leads.
+// debug=true returns the first 3 raw dataset items + the parsed normalize output (no writes) so we can see actor output shape.
 import { getApifyToken, getRun, getDatasetItems } from '../../lib/apify';
 import { scoreIntent, urgency, hashUrl } from '../../lib/score';
 
@@ -15,20 +13,23 @@ const cors = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };
-const json = (data: unknown, status = 200) =>
-  new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json', ...cors } });
+
+const json = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json', ...cors } });
 
 export const onRequestOptions: PagesFunction = async () => new Response(null, { status: 204, headers: cors });
 
-// Map an Apify dataset item from common scrapers (FB groups, Reddit) to our IngestPost shape.
+// Map an Apify dataset item from common scrapers (FB groups, Reddit, generic web) to our IngestPost shape.
+// Tries every common url/text/author/timestamp field name across actors.
 function normalize(item: any): { url: string; author?: string; group?: string; text?: string; timestamp?: string; city?: string; platform?: string } | null {
   if (!item || typeof item !== 'object') return null;
-  const url = item.url || item.postUrl || item.permalink || item.link;
+  const url = item.url || item.postUrl || item.permalink || item.permalinkUrl || item.link || item.facebookUrl || item.topLevelUrl;
   if (!url || typeof url !== 'string') return null;
-  const text = item.text || item.message || item.body || item.title || item.selftext || '';
-  const author = item.author?.name || item.author || item.user?.name || item.username;
-  const group = item.group?.name || item.groupName || item.subreddit || item.community;
-  const timestamp = item.time || item.timestamp || item.createdAt || item.created_utc;
+  const text = item.text || item.message || item.body || item.title || item.selftext || item.content || item.description || item.postText || '';
+  const authorObj = item.author || item.user || item.owner;
+  const author = (typeof authorObj === 'string' ? authorObj : authorObj?.name || authorObj?.username || authorObj?.fullName) || item.username || item.userName || '';
+  const groupObj = item.group || item.community;
+  const group = (typeof groupObj === 'string' ? groupObj : groupObj?.name) || item.groupName || item.subreddit || item.communityName || '';
+  const timestamp = item.time || item.timestamp || item.createdAt || item.created_at || item.created_utc || item.publishedTime || item.date;
   return { url, author, group, text, timestamp: timestamp ? String(timestamp) : undefined, platform: guessPlatform(url) };
 }
 
@@ -41,9 +42,10 @@ function guessPlatform(u: string): string {
 }
 
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
-  let body: { runId?: string };
+  let body: { runId?: string; debug?: boolean };
   try { body = await request.json(); } catch { return json({ error: 'invalid json' }, 400); }
   const runId = (body.runId || '').trim();
+  const debug = !!body.debug;
   if (!runId) return json({ error: 'runId required' }, 400);
 
   const token = await getApifyToken(env);
@@ -54,16 +56,26 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
 
   let run;
   try { run = await getRun(token, runId); } catch (e: any) { return json({ error: e?.message || String(e) }, 502); }
-
   if (record) {
     record.status = run.status;
     await env.LEADS.put('run:' + runId, JSON.stringify(record), { expirationTtl: 60 * 60 * 24 * 30 });
   }
-
   if (run.status !== 'SUCCEEDED') return json({ status: run.status });
 
   let items: any[] = [];
-  try { items = await getDatasetItems(token, run.defaultDatasetId, 500); } catch (e: any) { return json({ error: e?.message || String(e) }, 502); }
+  try { items = await getDatasetItems(token, run.defaultDatasetId, 500); }
+  catch (e: any) { return json({ error: e?.message || String(e) }, 502); }
+
+  if (debug) {
+    const sample = items.slice(0, 3);
+    return json({
+      status: 'SUCCEEDED',
+      total: items.length,
+      sampleKeys: sample.map(it => it && typeof it === 'object' ? Object.keys(it) : []),
+      sample,
+      normalized: sample.map(it => normalize(it)),
+    });
+  }
 
   const keywords: string[] = record?.keywords || [];
   let saved = 0;
@@ -91,6 +103,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     await env.LEADS.put(key, JSON.stringify(lead), { metadata: { score, ingestedAt: lead.ingestedAt } });
     saved++;
   }
+
   if (record) {
     record.ingested = (record.ingested || 0) + saved;
     await env.LEADS.put('run:' + runId, JSON.stringify(record), { expirationTtl: 60 * 60 * 24 * 30 });
