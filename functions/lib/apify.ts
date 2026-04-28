@@ -1,11 +1,19 @@
 // functions/lib/apify.ts
-// Thin Apify REST client. Reads token from KV (key 'connections:apify') first, falls back to env.APIFY_TOKEN.
-
+// Thin Apify REST client. Reads token per-user from KV (key 'u:<uid>:connections:apify').
 export interface ApifyEnv { LEADS: KVNamespace; APIFY_TOKEN?: string }
 
 const BASE = 'https://api.apify.com/v2';
 
-export async function getApifyToken(env: ApifyEnv): Promise<string | null> {
+export async function getApifyToken(env: ApifyEnv, uid?: string): Promise<string | null> {
+  if (uid) {
+    try {
+      const stored = await env.LEADS.get('u:' + uid + ':connections:apify');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed && typeof parsed.token === 'string' && parsed.token) return parsed.token;
+      }
+    } catch {}
+  }
   try {
     const stored = await env.LEADS.get('connections:apify');
     if (stored) {
@@ -51,7 +59,6 @@ export async function getDatasetItems(token: string, datasetId: string, limit = 
   return await r.json();
 }
 
-// Map a guessed actor for a saved source URL. User can override via input.
 export function pickActorForUrl(url: string): string {
   const u = url.toLowerCase();
   if (u.includes('facebook.com/groups/') || u.includes('facebook.com')) return 'apify/facebook-groups-scraper';
