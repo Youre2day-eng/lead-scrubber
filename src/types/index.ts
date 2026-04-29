@@ -1,4 +1,4 @@
-export type ViewType = 'scraper' | 'pipeline' | 'agents' | 'settings';
+export type ViewType = 'scraper' | 'pipeline' | 'agents' | 'dashboard' | 'settings';
 export type ScraperStatus = 'idle' | 'scraping' | 'filtering' | 'complete' | 'error';
 export type DocumentType = 'contract' | 'invoice';
 export type DocumentStatus = 'draft' | 'sent';
@@ -7,18 +7,9 @@ export type AgentStepType = 'send_message' | 'send_document' | 'move_stage' | 'w
 export type UrlType = 'facebook' | 'linkedin' | 'custom';
 export type LeadIntent = 'buying' | 'selling' | 'neutral';
 
-export interface AuthUser {
-  uid: string;
-  email: string | null;
-  displayName?: string | null;
-}
+export interface AuthUser { uid: string; email: string | null; displayName?: string | null; }
 
-export interface TargetUrl {
-  id: string;
-  url: string;
-  type: UrlType;
-  enabled?: boolean;
-}
+export interface TargetUrl { id: string; url: string; type: UrlType; enabled?: boolean; }
 
 export interface Lead {
   id: string;
@@ -32,21 +23,9 @@ export interface Lead {
   intent?: LeadIntent;
 }
 
-export interface LeadMessage {
-  id: string;
-  text: string;
-  date: string;
-  type: 'outbound' | 'inbound';
-}
+export interface LeadMessage { id: string; text: string; date: string; type: 'outbound' | 'inbound'; }
 
-export interface LeadDocument {
-  id: string;
-  type: DocumentType;
-  name: string;
-  status: DocumentStatus;
-  date: string;
-  sentAt?: string;
-}
+export interface LeadDocument { id: string; type: DocumentType; name: string; status: DocumentStatus; date: string; sentAt?: string; }
 
 export interface SavedLead extends Lead {
   stage: string;
@@ -56,12 +35,7 @@ export interface SavedLead extends Lead {
   lastContacted?: string;
 }
 
-export interface PipelineStage {
-  id: string;
-  title: string;
-  color: string;
-  bgColor: string;
-}
+export interface PipelineStage { id: string; title: string; color: string; bgColor: string; }
 
 export interface AgentStep {
   id: string;
@@ -72,22 +46,8 @@ export interface AgentStep {
   waitDays?: number;
 }
 
-export interface Agent {
-  id: string;
-  name: string;
-  trigger: AgentTrigger;
-  isActive: boolean;
-  steps: AgentStep[];
-}
+export interface Agent { id: string; name: string; trigger: AgentTrigger; isActive: boolean; steps: AgentStep[]; }
 
-export interface SmartTemplate {
-  id: string;
-  title: string;
-  text: string;
-}
+export interface SmartTemplate { id: string; title: string; text: string; }
 
-export interface AppConfig {
-  pipelineStages: PipelineStage[];
-  agents: Agent[];
-  targetUrls: TargetUrl[];
-}
+export interface AppConfig { pipelineStages: PipelineStage[]; agents: Agent[]; targetUrls: TargetUrl[]; }
