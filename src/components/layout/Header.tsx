@@ -1,13 +1,17 @@
-import { Bot, Database, HardDrive, LayoutDashboard, Search, Settings, Target } from 'lucide-react';
+import { BarChart3, Bot, Database, HardDrive, LayoutDashboard, Search, Settings, Target } from 'lucide-react';
 import type { ViewType } from '../../types';
 import { isFirebaseEnabled } from '../../lib/firebase';
 
-interface HeaderProps { activeView: ViewType; onViewChange: (v: ViewType) => void; }
+interface HeaderProps {
+  activeView: ViewType;
+  onViewChange: (v: ViewType) => void;
+}
 
 const NAV: { id: ViewType; label: string; Icon: React.ElementType }[] = [
   { id: 'scraper', label: 'Scraper', Icon: Search },
   { id: 'pipeline', label: 'Pipeline', Icon: LayoutDashboard },
   { id: 'agents', label: 'Agents', Icon: Bot },
+  { id: 'dashboard', label: 'Dashboard', Icon: BarChart3 },
   { id: 'settings', label: 'Settings', Icon: Settings },
 ];
 
@@ -28,7 +32,8 @@ export default function Header({ activeView, onViewChange }: HeaderProps) {
                 activeView === id ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              <Icon className="w-4 h-4" /> {label}
+              <Icon className="w-4 h-4" />
+              {label}
             </button>
           ))}
         </div>
