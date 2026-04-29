@@ -3,7 +3,7 @@
 // Body: { runId: string, debug?: boolean }
 import { getApifyToken, getRun, getDatasetItems } from '../../lib/apify';
 import { requireUser, userKey } from '../../lib/auth';
-import { scoreIntent, urgency, hashUrl } from '../../lib/score';
+import { scoreIntent, urgency, hashUrl, detectIntent } from '../../lib/score';
 
 interface Env { LEADS: KVNamespace; APIFY_TOKEN?: string; AUTH_SECRET?: string }
 
@@ -12,12 +12,10 @@ const cors = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };
-
 const json = (data: unknown, status = 200) =>
   new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json', ...cors } });
 
-export const onRequestOptions: PagesFunction = async () =>
-  new Response(null, { status: 204, headers: cors });
+export const onRequestOptions: PagesFunction = async () => new Response(null, { status: 204, headers: cors });
 
 function isErrorStub(item: any): boolean {
   if (!item || typeof item !== 'object') return true;
@@ -55,7 +53,6 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
 
   let body: { runId?: string; debug?: boolean };
   try { body = await request.json(); } catch { return json({ error: 'invalid json' }, 400); }
-
   const runId = (body.runId || '').trim();
   const debug = !!body.debug;
   if (!runId) return json({ error: 'runId required' }, 400);
@@ -63,11 +60,9 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   const recordRaw = await env.LEADS.get(userKey(user.uid, 'run:' + runId));
   const record = recordRaw ? JSON.parse(recordRaw) : null;
 
-  // Reddit-native runs are synchronous; if record exists with that actor, return immediately.
   if (record && record.actor === 'reddit-native') {
     return json({ status: 'SUCCEEDED', ingested: record.ingested || 0, total: record.total || 0, skipped: record.skipped || 0, errors: [] });
   }
-
   if (runId.startsWith('reddit_') && !record) {
     return json({ error: 'run not found' }, 404);
   }
@@ -76,8 +71,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   if (!token) return json({ error: 'no Apify token' }, 412);
 
   let run;
-  try { run = await getRun(token, runId); }
-  catch (e: any) { return json({ error: e?.message || String(e) }, 502); }
+  try { run = await getRun(token, runId); } catch (e: any) { return json({ error: e?.message || String(e) }, 502); }
 
   if (record) {
     record.status = run.status;
@@ -87,36 +81,42 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   if (run.status !== 'SUCCEEDED') return json({ status: run.status });
 
   let items: any[] = [];
-  try { items = await getDatasetItems(token, run.defaultDatasetId, 500); }
-  catch (e: any) { return json({ error: e?.message || String(e) }, 502); }
+  try { items = await getDatasetItems(token, run.defaultDatasetId, 500); } catch (e: any) { return json({ error: e?.message || String(e) }, 502); }
 
   if (debug) {
     const sample = items.slice(0, 3);
-    return json({
-      status: 'SUCCEEDED', total: items.length,
-      sampleKeys: sample.map(it => it && typeof it === 'object' ? Object.keys(it) : []),
-      sample, normalized: sample.map(it => normalize(it)),
-    });
+    return json({ status: 'SUCCEEDED', total: items.length, sampleKeys: sample.map(it => it && typeof it === 'object' ? Object.keys(it) : []), sample, normalized: sample.map(it => normalize(it)) });
   }
 
   const errorItems = items.filter(isErrorStub);
   const errorMessages = Array.from(new Set(errorItems.map((it: any) => it?.errorDescription || it?.error).filter(Boolean))).slice(0, 3);
 
   const keywords: string[] = record?.keywords || [];
-  let saved = 0; let skipped = 0;
+  let saved = 0;
+  let skipped = 0;
   for (const it of items) {
     const post = normalize(it);
     if (!post) { skipped++; continue; }
     const key = userKey(user.uid, 'lead:' + (await hashUrl(post.url)));
     if (await env.LEADS.get(key)) { skipped++; continue; }
     const score = scoreIntent(post.text || '', keywords);
+    const intent = detectIntent(post.text || '');
     const lead = {
-      id: key, url: post.url, author: post.author || '', group: post.group || '',
-      text: post.text || '', timestamp: post.timestamp || new Date().toISOString(),
-      city: '', platform: post.platform || 'web', intentScore: score,
-      urgency: urgency(score), ingestedAt: new Date().toISOString(), runId,
+      id: key,
+      url: post.url,
+      author: post.author || '',
+      group: post.group || '',
+      text: post.text || '',
+      timestamp: post.timestamp || new Date().toISOString(),
+      city: '',
+      platform: post.platform || 'web',
+      intentScore: score,
+      intent,
+      urgency: urgency(score),
+      ingestedAt: new Date().toISOString(),
+      runId,
     };
-    await env.LEADS.put(key, JSON.stringify(lead), { metadata: { score, ingestedAt: lead.ingestedAt } });
+    await env.LEADS.put(key, JSON.stringify(lead), { metadata: { score, intent, ingestedAt: lead.ingestedAt } });
     saved++;
   }
 
