@@ -2,9 +2,10 @@
 // POST /api/scrape/poll
 // Body: { runId: string, debug?: boolean }
 import { getApifyToken, getRun, getDatasetItems } from '../../lib/apify';
+import { requireUser, userKey } from '../../lib/auth';
 import { scoreIntent, urgency, hashUrl } from '../../lib/score';
 
-interface Env { LEADS: KVNamespace; APIFY_TOKEN?: string }
+interface Env { LEADS: KVNamespace; APIFY_TOKEN?: string; AUTH_SECRET?: string }
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -12,9 +13,11 @@ const cors = {
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };
 
-const json = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json', ...cors } });
+const json = (data: unknown, status = 200) =>
+  new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json', ...cors } });
 
-export const onRequestOptions: PagesFunction = async () => new Response(null, { status: 204, headers: cors });
+export const onRequestOptions: PagesFunction = async () =>
+  new Response(null, { status: 204, headers: cors });
 
 function isErrorStub(item: any): boolean {
   if (!item || typeof item !== 'object') return true;
@@ -22,7 +25,7 @@ function isErrorStub(item: any): boolean {
   return false;
 }
 
-function normalize(item: any): { url: string; author?: string; group?: string; text?: string; timestamp?: string; city?: string; platform?: string } | null {
+function normalize(item: any) {
   if (!item || typeof item !== 'object') return null;
   if (isErrorStub(item)) return null;
   const url = item.url || item.postUrl || item.permalink || item.permalinkUrl || item.link || item.facebookUrl || item.topLevelUrl;
@@ -46,24 +49,41 @@ function guessPlatform(u: string): string {
 }
 
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
+  const userOrResp = await requireUser(env, request);
+  if (userOrResp instanceof Response) return userOrResp;
+  const user = userOrResp;
+
   let body: { runId?: string; debug?: boolean };
   try { body = await request.json(); } catch { return json({ error: 'invalid json' }, 400); }
+
   const runId = (body.runId || '').trim();
   const debug = !!body.debug;
   if (!runId) return json({ error: 'runId required' }, 400);
 
-  const token = await getApifyToken(env);
-  if (!token) return json({ error: 'no Apify token' }, 412);
-
-  const recordRaw = await env.LEADS.get('run:' + runId);
+  const recordRaw = await env.LEADS.get(userKey(user.uid, 'run:' + runId));
   const record = recordRaw ? JSON.parse(recordRaw) : null;
 
+  // Reddit-native runs are synchronous; if record exists with that actor, return immediately.
+  if (record && record.actor === 'reddit-native') {
+    return json({ status: 'SUCCEEDED', ingested: record.ingested || 0, total: record.total || 0, skipped: record.skipped || 0, errors: [] });
+  }
+
+  if (runId.startsWith('reddit_') && !record) {
+    return json({ error: 'run not found' }, 404);
+  }
+
+  const token = await getApifyToken(env, user.uid);
+  if (!token) return json({ error: 'no Apify token' }, 412);
+
   let run;
-  try { run = await getRun(token, runId); } catch (e: any) { return json({ error: e?.message || String(e) }, 502); }
+  try { run = await getRun(token, runId); }
+  catch (e: any) { return json({ error: e?.message || String(e) }, 502); }
+
   if (record) {
     record.status = run.status;
-    await env.LEADS.put('run:' + runId, JSON.stringify(record), { expirationTtl: 60 * 60 * 24 * 30 });
+    await env.LEADS.put(userKey(user.uid, 'run:' + runId), JSON.stringify(record), { expirationTtl: 60 * 60 * 24 * 30 });
   }
+
   if (run.status !== 'SUCCEEDED') return json({ status: run.status });
 
   let items: any[] = [];
@@ -73,11 +93,9 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   if (debug) {
     const sample = items.slice(0, 3);
     return json({
-      status: 'SUCCEEDED',
-      total: items.length,
+      status: 'SUCCEEDED', total: items.length,
       sampleKeys: sample.map(it => it && typeof it === 'object' ? Object.keys(it) : []),
-      sample,
-      normalized: sample.map(it => normalize(it)),
+      sample, normalized: sample.map(it => normalize(it)),
     });
   }
 
@@ -85,27 +103,18 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   const errorMessages = Array.from(new Set(errorItems.map((it: any) => it?.errorDescription || it?.error).filter(Boolean))).slice(0, 3);
 
   const keywords: string[] = record?.keywords || [];
-  let saved = 0;
-  let skipped = 0;
+  let saved = 0; let skipped = 0;
   for (const it of items) {
     const post = normalize(it);
     if (!post) { skipped++; continue; }
-    const key = 'lead:' + (await hashUrl(post.url));
+    const key = userKey(user.uid, 'lead:' + (await hashUrl(post.url)));
     if (await env.LEADS.get(key)) { skipped++; continue; }
     const score = scoreIntent(post.text || '', keywords);
     const lead = {
-      id: key,
-      url: post.url,
-      author: post.author || '',
-      group: post.group || '',
-      text: post.text || '',
-      timestamp: post.timestamp || new Date().toISOString(),
-      city: '',
-      platform: post.platform || 'web',
-      intentScore: score,
-      urgency: urgency(score),
-      ingestedAt: new Date().toISOString(),
-      runId,
+      id: key, url: post.url, author: post.author || '', group: post.group || '',
+      text: post.text || '', timestamp: post.timestamp || new Date().toISOString(),
+      city: '', platform: post.platform || 'web', intentScore: score,
+      urgency: urgency(score), ingestedAt: new Date().toISOString(), runId,
     };
     await env.LEADS.put(key, JSON.stringify(lead), { metadata: { score, ingestedAt: lead.ingestedAt } });
     saved++;
@@ -114,7 +123,8 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   if (record) {
     record.ingested = (record.ingested || 0) + saved;
     record.lastErrors = errorMessages;
-    await env.LEADS.put('run:' + runId, JSON.stringify(record), { expirationTtl: 60 * 60 * 24 * 30 });
+    await env.LEADS.put(userKey(user.uid, 'run:' + runId), JSON.stringify(record), { expirationTtl: 60 * 60 * 24 * 30 });
   }
+
   return json({ status: 'SUCCEEDED', ingested: saved, skipped, total: items.length, errors: errorMessages });
 };
