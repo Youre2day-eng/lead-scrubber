@@ -7,6 +7,7 @@ import Header from './components/layout/Header';
 import ScraperView from './components/scraper/ScraperView';
 import PipelineView from './components/pipeline/PipelineView';
 import AgentsView from './components/agents/AgentsView';
+import DashboardView from './components/dashboard/DashboardView';
 import SettingsView from './components/settings/SettingsView';
 import LeadModal from './components/modals/LeadModal';
 import LoginView from './components/auth/LoginView';
@@ -60,6 +61,9 @@ export default function App() {
             onSaveAgent={(agent) => saveAgents([...agents.filter((a) => a.id !== agent.id), agent])}
             onDeleteAgent={(id) => saveAgents(agents.filter((a) => a.id !== id))}
           />
+        )}
+        {activeView === 'dashboard' && (
+          <DashboardView savedLeads={savedLeads} stages={pipelineStages} />
         )}
         {activeView === 'settings' && (
           <SettingsView
