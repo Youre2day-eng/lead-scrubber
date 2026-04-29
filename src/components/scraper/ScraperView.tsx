@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Activity, AlertCircle, Settings as SettingsIcon, Users, Loader2, Inbox, Megaphone, List } from 'lucide-react';
-import { useLeads } from '../../hooks/useLeads';
+import { useScraper } from '../../hooks/useScraper';
 import LeadCard from './LeadCard';
 import type { TargetUrl, AuthUser, Lead, LeadIntent } from '../../types';
 
@@ -37,7 +37,7 @@ export function ScraperView({ user, targetUrls, onGoToSettings, onSaveLead, sess
   const [niche, setNiche] = useState('');
   const [keywords, setKeywords] = useState('ISO, looking for, any recommendations');
   const [filter, setFilter] = useState<IntentFilter>('buying');
-  const { leads, status, error, runScraper } = useLeads(user as any);
+  const { leads, status, errorMsg, runScraper } = useScraper();
 
   const enabledUrls = targetUrls.filter(u => u.enabled !== false);
   const disabledCount = targetUrls.length - enabledUrls.length;
@@ -70,14 +70,10 @@ export function ScraperView({ user, targetUrls, onGoToSettings, onSaveLead, sess
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!niche.trim() || enabledUrls.length === 0) return;
-    runScraper({
-      niche: niche.trim(),
-      keywords: keywords.split(',').map(k => k.trim()).filter(Boolean),
-      targetUrls: enabledUrls,
-    });
+    runScraper(niche.trim(), keywords, enabledUrls);
   };
 
-  const isRunning = status === 'running' || status === 'starting';
+  const isRunning = status === 'scraping' || status === 'starting';
   const showEmptyState = status === 'idle' && taggedLeads.length === 0;
 
   return (
@@ -112,7 +108,7 @@ export function ScraperView({ user, targetUrls, onGoToSettings, onSaveLead, sess
           <button type=\"submit\" disabled={isRunning || !niche.trim() || enabledUrls.length === 0} className=\"w-full bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white font-medium py-2.5 rounded-lg flex items-center justify-center gap-2 transition\">
             {isRunning ? (<><Loader2 className=\"w-4 h-4 animate-spin\" /> Scrubbing…</>) : (<><Activity className=\"w-4 h-4\" /> Start Lead Search</>)}
           </button>
-          {error && (<div className=\"flex items-start gap-2 text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg p-2\"><AlertCircle className=\"w-4 h-4 flex-shrink-0 mt-0.5\" /><span>{error}</span></div>)}
+          {status === 'error' && errorMsg && (<div className=\"flex items-start gap-2 text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg p-2\"><AlertCircle className=\"w-4 h-4 flex-shrink-0 mt-0.5\" /><span>{errorMsg}</span></div>)}
         </form>
       </div>
 
