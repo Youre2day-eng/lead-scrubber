@@ -1,4 +1,5 @@
-export type ViewType = 'scraper' | 'pipeline' | 'agents' | 'dashboard' | 'settings';
+export type ViewType = 'dashboard' | 'scraper' | 'pipeline' | 'agents' | 'settings' | 'forms';
+
 export type ScraperStatus = 'idle' | 'scraping' | 'filtering' | 'complete' | 'error';
 export type DocumentType = 'contract' | 'invoice';
 export type DocumentStatus = 'draft' | 'sent';
@@ -23,7 +24,7 @@ export interface Lead {
   intent?: LeadIntent;
 }
 
-export interface LeadMessage { id: string; text: string; date: string; type: 'outbound' | 'inbound'; }
+export interface LeadMessage { id: string; text: string; date: string; type: 'outbound' | 'inbound'; auto?: boolean; }
 
 export interface LeadDocument { id: string; type: DocumentType; name: string; status: DocumentStatus; date: string; sentAt?: string; }
 
@@ -33,21 +34,50 @@ export interface SavedLead extends Lead {
   messages?: LeadMessage[];
   documents?: LeadDocument[];
   lastContacted?: string;
+  source?: string;
 }
 
 export interface PipelineStage { id: string; title: string; color: string; bgColor: string; }
 
-export interface AgentStep {
-  id: string;
-  type: AgentStepType;
-  templateId?: string;
-  docType?: string;
-  stageId?: string;
-  waitDays?: number;
-}
+export interface StageMessage { template: string; autoSend: boolean; }
+
+export interface AgentStep { id: string; type: AgentStepType; templateId?: string; docType?: string; stageId?: string; waitDays?: number; }
 
 export interface Agent { id: string; name: string; trigger: AgentTrigger; isActive: boolean; steps: AgentStep[]; }
 
 export interface SmartTemplate { id: string; title: string; text: string; }
 
-export interface AppConfig { pipelineStages: PipelineStage[]; agents: Agent[]; targetUrls: TargetUrl[]; }
+export interface Goals { revenuePerLead: number; monthlyGoal: number; wonStageIds?: string[]; }
+
+export interface IntakeForm {
+  id: string;
+  name: string;
+  headline: string;
+  description: string;
+  fields: IntakeFormField[];
+  submitLabel: string;
+  successMessage: string;
+  accentColor: string;
+  defaultStage?: string;
+  createdAt: string;
+}
+
+export interface IntakeFormField {
+  id: string;
+  label: string;
+  key: 'name' | 'email' | 'phone' | 'company' | 'message' | 'budget' | 'custom';
+  customKey?: string;
+  type: 'text' | 'email' | 'tel' | 'textarea' | 'number' | 'select';
+  required: boolean;
+  placeholder?: string;
+  options?: string[];
+}
+
+export interface AppConfig {
+  pipelineStages: PipelineStage[];
+  agents: Agent[];
+  targetUrls: TargetUrl[];
+  stageMessages?: Record<string, StageMessage>;
+  goals?: Goals;
+  forms?: IntakeForm[];
+}
