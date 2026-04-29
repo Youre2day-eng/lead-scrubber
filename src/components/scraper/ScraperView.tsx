@@ -153,4 +153,3 @@ export function ScraperView({ user, targetUrls, onGoToSettings, onSaveLead, sess
 
 export default ScraperView;
 
-export default ScraperView;
