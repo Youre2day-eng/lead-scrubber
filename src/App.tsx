@@ -37,6 +37,7 @@ export default function App() {
         {activeView === 'scraper' && (
           <ScraperView
             targetUrls={targetUrls}
+            onSaveUrls={saveUrls}
             onGoToSettings={() => setActiveView('settings')}
             onSaveLead={handleSaveLead}
             sessionSavedIds={sessionSavedIds}
@@ -44,10 +45,21 @@ export default function App() {
           />
         )}
         {activeView === 'pipeline' && (
-          <PipelineView stages={pipelineStages} leads={savedLeads} onOpenLead={setSelectedLead} onStageChange={updateStage} onDeleteLead={deleteLead} />
+          <PipelineView
+            stages={pipelineStages}
+            leads={savedLeads}
+            onOpenLead={setSelectedLead}
+            onStageChange={updateStage}
+            onDeleteLead={deleteLead}
+          />
         )}
         {activeView === 'agents' && (
-          <AgentsView agents={agents} stages={pipelineStages} onSaveAgent={(agent) => saveAgents([...agents.filter((a) => a.id !== agent.id), agent])} onDeleteAgent={(id) => saveAgents(agents.filter((a) => a.id !== id))} />
+          <AgentsView
+            agents={agents}
+            stages={pipelineStages}
+            onSaveAgent={(agent) => saveAgents([...agents.filter((a) => a.id !== agent.id), agent])}
+            onDeleteAgent={(id) => saveAgents(agents.filter((a) => a.id !== id))}
+          />
         )}
         {activeView === 'settings' && (
           <SettingsView
@@ -63,7 +75,16 @@ export default function App() {
         </div>
       </main>
       {selectedLead && (
-        <LeadModal lead={selectedLead} stages={pipelineStages} niche={niche} onClose={() => setSelectedLead(null)} onLeadUpdate={setSelectedLead} onSendMessage={sendMessage} onAddDocument={addDocument} onSendDocument={sendDocument} />
+        <LeadModal
+          lead={selectedLead}
+          stages={pipelineStages}
+          niche={niche}
+          onClose={() => setSelectedLead(null)}
+          onLeadUpdate={setSelectedLead}
+          onSendMessage={sendMessage}
+          onAddDocument={addDocument}
+          onSendDocument={sendDocument}
+        />
       )}
     </div>
   );
