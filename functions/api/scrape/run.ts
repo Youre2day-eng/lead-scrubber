@@ -50,9 +50,7 @@ async function fetchRedditNative(url: string): Promise<any[] | null> {
       subreddit: d.subreddit || '',
       title: d.title || '',
       selftext: d.selftext || '',
-      text: (d.title || '') + (d.selftext ? '
-
-' + d.selftext : ''),
+      text: (d.title || '') + (d.selftext ? '\n\n' + d.selftext : ''),
       timestamp: d.created_utc ? new Date(d.created_utc * 1000).toISOString() : new Date().toISOString(),
       platform: 'reddit',
     }));
