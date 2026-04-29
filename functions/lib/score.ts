@@ -1,13 +1,16 @@
 // functions/lib/score.ts
-// Shared buyer-intent scoring used by /api/leads/ingest and /api/scrape/poll.
+// Shared buyer-intent scoring used by /api/leads/ingest, /api/scrape/run,
+// /api/scrape/poll, and /api/leads/list (re-classification on fetch).
 // Tightened classifier — weighted signals + prefix tags + seller-context guards.
 
 // ---------------------------------------------------------------------------
 // 1. Hard prefix tags. Many platforms use bracket tags at the start of titles
 //    (e.g. r/forhire). Treat these as authoritative.
+//    The leading [\s"'*\`]* allows leading whitespace, quotes, asterisks, or
+//    backticks (markdown bold / code / quoted titles) before the bracket.
 // ---------------------------------------------------------------------------
-const SELLER_TAG = /^\s*[\[\(]\s*(for\s*hire|fh|offer|offering|service|services|portfolio|available|open\s*for\s*work|commissions?\s*open)\s*[\]\)]/i;
-const BUYER_TAG  = /^\s*[\[\(]\s*(hiring|hire|iso|task|request|need|needed|looking|paid|paying|wtb|w2b|want\s*to\s*buy|help)\s*[\]\)]/i;
+const SELLER_TAG = /^[\s"'*\`]*[\[\(]\s*(for\s*hire|fh|offer|offering|service|services|portfolio|available|open\s*for\s*work|commissions?\s*open)\s*[\]\)]/i;
+const BUYER_TAG  = /^[\s"'*\`]*[\[\(]\s*(hiring|hire|iso|task|request|need|needed|looking|paid|paying|wtb|w2b|want\s*to\s*buy|help)\s*[\]\)]/i;
 
 // ---------------------------------------------------------------------------
 // 2. Hard seller-context guards. Phrases that LOOK like buyer signals but are
@@ -25,7 +28,7 @@ const SELLER_CONTEXT_GUARDS: RegExp[] = [
 
 // Soft guards — only trigger when a seller score is also present nearby.
 const SOFT_SELLER_GUARDS: RegExp[] = [
-  /\banyone\s+looking\b/i, // "Anyone looking for X? I offer..."
+  /\banyone\s+looking\b/i,
 ];
 
 const BUYER_PHRASES: RegExp[] = [
@@ -75,8 +78,8 @@ const BUYING_SIGNALS: Array<[RegExp, number]> = [
 const SELLING_SIGNALS: Array<[RegExp, number]> = [
   [/\b\[?for hire\]?\b/i, 4],
   [/\b\[?FH\]?\b/, 3],
-  [/\bi (offer|provide|do|build|sell|design|run|create|make)\b/i, 2],
-  [/\bwe (offer|provide|sell|build|design|create)\b/i, 2],
+  [/\bi (offer|provide|do|build|sell|design|run|create|make|edit|write|code|develop|illustrate|animate|photograph|film|produce)\b/i, 2],
+  [/\bwe (offer|provide|sell|build|design|create|edit|develop)\b/i, 2],
   [/\bdm me\b/i, 3],
   [/\bmessage me\b/i, 2],
   [/\bpm me\b/i, 2],
@@ -84,8 +87,9 @@ const SELLING_SIGNALS: Array<[RegExp, number]> = [
   [/\bavailable for (hire|work|projects|commissions)\b/i, 4],
   [/\baccepting (clients|new clients|projects|work|orders)\b/i, 4],
   [/\bportfolio\b/i, 2],
+  [/\bwork samples?\b/i, 2],
   [/\brate(s)?:?\s*\$/i, 3],
-  [/\$\d+\s*\/\s*(hr|hour|month|project|word|page)\b/i, 4],
+  [/\$\d+\s*\/\s*(hr|hour|min|minute|month|project|word|page|video|post)\b/i, 4],
   [/\bstarting at \$\d+/i, 3],
   [/\bbook (a|me|now|today)\b/i, 2],
   [/\bmy (services?|website|portfolio|rates?)\b/i, 3],
@@ -148,7 +152,7 @@ export function detectIntent(text: string): LeadIntent {
   }
 
   // 4. Decisive seller cues outweigh a single buyer phrase.
-  const decisiveSeller = /\$\d+\s*\/\s*(hr|hour|month|project|word|page)\b|\bdm me\b|\bfor hire\b|\bavailable for (hire|work)\b|\baccepting (clients|new clients|projects)\b/i.test(text);
+  const decisiveSeller = /\$\d+\s*\/\s*(hr|hour|min|minute|month|project|word|page|video|post)\b|\bdm me\b|\bfor hire\b|\bavailable for (hire|work)\b|\baccepting (clients|new clients|projects)\b/i.test(text);
   if (decisiveSeller && sell >= buy - 1) return 'selling';
 
   // 5. Decisive buyer cues outweigh a passing seller mention.
