@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Activity, AlertCircle, Settings as SettingsIcon, Users, Loader2, Inbox, Megaphone, List } from 'lucide-react';
 import { useLeads } from '../../hooks/useLeads';
-import { LeadCard } from './LeadCard';
+import LeadCard from './LeadCard';
 import type { TargetUrl, AuthUser, Lead, LeadIntent } from '../../types';
 
 interface Props {
@@ -154,3 +154,7 @@ export function ScraperView({ user, targetUrls, onGoToSettings, onSaveLead, sess
     </div>
   );
 }
+
+export default ScraperView;
+
+export default ScraperView;
