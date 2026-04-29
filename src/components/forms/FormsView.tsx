@@ -35,11 +35,28 @@ function newForm(): IntakeForm {
 export default function FormsView({ forms, stages, onSave, userId }: FormsViewProps) {
   const [activeId, setActiveId] = useState<string | null>(forms[0]?.id ?? null);
   const [draft, setDraft] = useState<IntakeForm | null>(forms.find((f) => f.id === activeId) || forms[0] || null);
+  const [publishMsg, setPublishMsg] = useState<string | null>(null);
 
-  const select = (id: string) => { setActiveId(id); setDraft(forms.find((f) => f.id === id) || null); };
-  const create = () => { const f = newForm(); const next = [...forms, f]; onSave(next); setActiveId(f.id); setDraft(f); };
+  const select = (id: string) => { setActiveId(id); setDraft(forms.find((f) => f.id === id) || null); setPublishMsg(null); };
+  const create = () => { const f = newForm(); const next = [...forms, f]; onSave(next); setActiveId(f.id); setDraft(f); setPublishMsg(null); };
   const remove = (id: string) => { const next = forms.filter((f) => f.id !== id); onSave(next); if (activeId === id) { setActiveId(next[0]?.id ?? null); setDraft(next[0] || null); } };
-  const persist = () => { if (!draft) return; const next = forms.some((f) => f.id === draft.id) ? forms.map((f) => f.id === draft.id ? draft : f) : [...forms, draft]; onSave(next); };
+
+  const persist = async () => {
+    if (!draft) return;
+    const next = forms.some((f) => f.id === draft.id) ? forms.map((f) => f.id === draft.id ? draft : f) : [...forms, draft];
+    onSave(next);
+    setPublishMsg('Publishing…');
+    try {
+      const r = await fetch('/api/forms/publish', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(draft) });
+      const data = await r.json();
+      if (data.ok) setPublishMsg('Published ✓  Form is live at the embed URL.');
+      else setPublishMsg('Saved locally. Publish failed: ' + (data.error || 'Unknown error.'));
+    } catch (e: any) {
+      setPublishMsg('Saved locally. Publish failed: ' + (e?.message || 'Network error.'));
+    }
+    setTimeout(() => setPublishMsg(null), 5000);
+  };
+
   const dirty = !!draft && JSON.stringify(forms.find((f) => f.id === draft.id)) !== JSON.stringify(draft);
 
   const updateDraft = (patch: Partial<IntakeForm>) => setDraft((prev) => prev ? { ...prev, ...patch } : prev);
@@ -129,8 +146,9 @@ export default function FormsView({ forms, stages, onSave, userId }: FormsViewPr
                 ))}
               </div>
               <button onClick={addField} className="mt-3 text-sm text-blue-600 hover:text-blue-800 font-semibold flex items-center gap-1"><Plus className="w-4 h-4" /> Add field</button>
-              <div className="flex justify-end mt-4">
-                <button onClick={persist} disabled={!dirty} className="text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed px-6 py-2 rounded-lg flex items-center gap-2"><CheckCircle2 className="w-4 h-4" /> Save form</button>
+              <div className="flex justify-between items-center gap-3 mt-4">
+                <span className="text-xs text-slate-500">{publishMsg}</span>
+                <button onClick={persist} disabled={!dirty} className="text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed px-6 py-2 rounded-lg flex items-center gap-2"><CheckCircle2 className="w-4 h-4" /> Save & Publish</button>
               </div>
             </div>
 
@@ -141,7 +159,7 @@ export default function FormsView({ forms, stages, onSave, userId }: FormsViewPr
               </div>
               <div className="bg-white border border-slate-200 rounded-lg p-5">
                 <div className="flex items-center gap-2 mb-3 text-slate-700"><Code className="w-4 h-4" /><span className="text-sm font-semibold">Embed code</span></div>
-                <p className="text-xs text-slate-500 mb-2">Save the form first, then paste this anywhere on your site:</p>
+                <p className="text-xs text-slate-500 mb-2">Click <strong>Save &amp; Publish</strong> first, then paste this anywhere on your site:</p>
                 <CopyBox label="URL" value={embedUrl} />
                 <div className="h-3" />
                 <CopyBox label="Iframe HTML" value={embedCode} />
