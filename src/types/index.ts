@@ -7,6 +7,7 @@ export type AgentTrigger = 'on_lead_saved' | 'on_stage_contacted' | 'on_no_reply
 export type AgentStepType = 'send_message' | 'send_document' | 'move_stage' | 'wait';
 export type UrlType = 'facebook' | 'linkedin' | 'custom';
 export type LeadIntent = 'buying' | 'selling' | 'neutral';
+export type IntentFilter = 'all' | 'buying' | 'selling';
 
 export interface AuthUser { uid: string; email: string | null; displayName?: string | null; }
 

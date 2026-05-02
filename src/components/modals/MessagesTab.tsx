@@ -1,4 +1,4 @@
-import { Plus, Send } from 'lucide-react';
+import { Info, Plus, Send } from 'lucide-react';
 import { useState } from 'react';
 import { SMART_TEMPLATES } from '../../constants';
 import type { SavedLead } from '../../types';
@@ -23,8 +23,19 @@ export default function MessagesTab({ lead, niche, onSend, onLeadUpdate }: Messa
     setDraft('');
   };
 
+  const platformLabel = lead.platform
+    ? lead.platform.charAt(0).toUpperCase() + lead.platform.slice(1)
+    : 'the platform';
+
   return (
     <div className="flex flex-col h-full">
+      <div className="mb-3 flex items-start gap-2 text-xs text-slate-600 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2.5">
+        <Info className="w-3.5 h-3.5 text-blue-500 shrink-0 mt-0.5" />
+        <span>
+          Messages are saved here as a record. To actually reach <strong>{lead.author}</strong>, copy your message and send it directly on <strong>{platformLabel}</strong>
+          {lead.groupName ? ` (via "${lead.groupName}")` : ''}.
+        </span>
+      </div>
       <div className="flex-1 bg-slate-50 rounded-xl border border-slate-200 p-4 mb-4 overflow-y-auto space-y-3 min-h-[200px]">
         {!lead.messages || lead.messages.length === 0 ? (
           <div className="text-center text-slate-400 mt-10 text-sm">

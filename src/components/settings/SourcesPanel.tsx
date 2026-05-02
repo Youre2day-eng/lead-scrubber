@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { ListChecks, Plus, Trash2, Save } from 'lucide-react';
 import type { TargetUrl, UrlType } from '../../types';
 
@@ -13,6 +13,19 @@ export default function SourcesPanel({ targetUrls, onSave }: Props) {
   );
   const [newUrl, setNewUrl] = useState('');
   const [newType, setNewType] = useState<UrlType>('custom');
+
+  // Keep draft in sync when the persisted targetUrls change (e.g. after
+  // Firestore/localStorage loads on first render or from another tab).
+  // Using a ref-based comparison avoids unnecessary resets when the parent
+  // re-renders but the actual URL list content has not changed.
+  const prevUrlsJsonRef = useRef(JSON.stringify(targetUrls));
+  useEffect(() => {
+    const json = JSON.stringify(targetUrls);
+    if (json !== prevUrlsJsonRef.current) {
+      prevUrlsJsonRef.current = json;
+      setDraft(targetUrls.map(u => ({ ...u, enabled: u.enabled !== false })));
+    }
+  }, [targetUrls]);
 
   const update = (id: string, patch: Partial<TargetUrl>) => {
     setDraft(draft.map(u => u.id === id ? { ...u, ...patch } : u));
