@@ -1,4 +1,4 @@
-import { Bot, ChevronRight, GitBranch, Inbox, Plus, RefreshCw, Send } from 'lucide-react';
+import { Bot, ChevronRight, Inbox, Plus, RefreshCw, RotateCcw, Send } from 'lucide-react';
 import { useState } from 'react';
 import { AGENT_TEMPLATES } from '../../constants';
 import type { Agent, AgentTemplate } from '../../types';
@@ -15,7 +15,7 @@ const TEMPLATE_ICONS: Record<string, React.ReactNode> = {
   send: <Send className="w-5 h-5" />,
   inbox: <Inbox className="w-5 h-5" />,
   loop: <RefreshCw className="w-5 h-5" />,
-  rewind: <GitBranch className="w-5 h-5" />,
+  rewind: <RotateCcw className="w-5 h-5" />,
 };
 
 const TEMPLATE_COLORS: string[] = [
