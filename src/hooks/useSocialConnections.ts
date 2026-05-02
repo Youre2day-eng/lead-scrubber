@@ -24,7 +24,7 @@ export function useSocialConnections() {
     setError(null);
     try {
       const r = await fetch('/api/connections');
-      if (!r.ok) throw new Error('HTTP ' + r.status);
+      if (!r.ok) throw new Error(`Failed to load connections (HTTP ${r.status})`);
       const j = await r.json() as Partial<ConnectionsPayload>;
       setConnections({
         apify: j.apify ?? { connected: false },

@@ -136,7 +136,7 @@ export const onRequestGet: PagesFunction<AuthEnv> = async ({ request, env, param
   let stateData: { uid: string; provider: string };
   try { stateData = JSON.parse(stateRaw); } catch (err) {
     console.error('[oauth/callback] Failed to parse state data:', err);
-    return errorRedirect('corrupt_state');
+    return errorRedirect('authentication_failed');
   }
   if (stateData.provider !== provider) return errorRedirect('provider_mismatch');
   await env.LEADS.delete(stateKey);

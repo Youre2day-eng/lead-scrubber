@@ -13,6 +13,17 @@ const PLATFORM_LABELS: Record<string, string> = {
   reddit: 'Reddit',
 };
 
+function formatOAuthError(raw: string): string {
+  // Convert underscore-separated codes to a readable sentence.
+  // e.g. "oauth_denied_user_cancelled" → "OAuth denied: user cancelled"
+  const parts = raw.split('_');
+  if (parts.length >= 2 && parts[0] === 'oauth' && parts[1] === 'denied') {
+    const reason = parts.slice(2).join(' ');
+    return reason ? `OAuth denied: ${reason}` : 'OAuth denied';
+  }
+  return parts.join(' ');
+}
+
 export function consumeOAuthRedirectParams(): OAuthFlashMsg | null {
   const params = new URLSearchParams(window.location.search);
   const connected = params.get('connected');
@@ -27,5 +38,5 @@ export function consumeOAuthRedirectParams(): OAuthFlashMsg | null {
     const label = PLATFORM_LABELS[connected] || connected;
     return { type: 'success', text: `${label} connected successfully!` };
   }
-  return { type: 'error', text: (oauthError as string).replace(/_/g, ' ') };
+  return { type: 'error', text: formatOAuthError(oauthError as string) };
 }

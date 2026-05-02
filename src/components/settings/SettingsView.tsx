@@ -35,7 +35,7 @@ export default function SettingsView({ stages, onChange, onSave, targetUrls, onS
       const p = new URLSearchParams(window.location.search);
       if (p.get('tab') === 'connections') return 'connections' as Tab;
     } catch {
-      // URLSearchParams failed — window.location may be unavailable (SSR/test). Default to 'goals'.
+      // window.location may be unavailable in SSR/test environments. Default to 'goals'.
     }
     return 'goals' as Tab;
   })();

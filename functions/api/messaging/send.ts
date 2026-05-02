@@ -43,9 +43,10 @@ async function getToken(env: AuthEnv, uid: string, platform: string): Promise<st
  * Reddit: send a private message to a user.
  * Uses the authenticated user's token to POST to /api/compose.
  */
-async function sendRedditMessage(token: string, recipient: string, text: string): Promise<{ ok: true } | { error: string }> {
+async function sendRedditMessage(token: string, recipient: string, text: string, subject?: string): Promise<{ ok: true } | { error: string }> {
   // Clean up common Reddit username formats (u/foo, /u/foo)
   const cleanRecipient = recipient.replace(/^\/?(u\/)?/, '');
+  const messageSubject = (subject || '').trim() || 'Message via LeadScrubber';
   const res = await fetch('https://oauth.reddit.com/api/compose', {
     method: 'POST',
     headers: {
@@ -56,7 +57,7 @@ async function sendRedditMessage(token: string, recipient: string, text: string)
     body: new URLSearchParams({
       api_type: 'json',
       to: cleanRecipient,
-      subject: 'Hello from LeadScrubber',
+      subject: messageSubject,
       text,
     }).toString(),
   });
@@ -115,13 +116,13 @@ export const onRequestPost: PagesFunction<AuthEnv> = async ({ request, env }) =>
   const u = await requireUser(env, request);
   if (u instanceof Response) return u;
 
-  let body: { platform?: string; recipientUsername?: string; text?: string };
+  let body: { platform?: string; recipientUsername?: string; text?: string; subject?: string };
   try { body = await request.json(); } catch (err) {
     console.error('[messaging/send] Failed to parse request body:', err);
     return json({ error: 'invalid_json' }, 400);
   }
 
-  const { platform, recipientUsername, text } = body;
+  const { platform, recipientUsername, text, subject } = body;
   if (!platform || !recipientUsername || !text) return json({ error: 'platform, recipientUsername, and text are required' }, 400);
 
   const supported = ['facebook', 'instagram', 'threads', 'reddit'];
@@ -140,7 +141,7 @@ export const onRequestPost: PagesFunction<AuthEnv> = async ({ request, env }) =>
 
   let result: { ok: true } | { error: string };
   if (platform === 'reddit') {
-    result = await sendRedditMessage(token, recipientUsername, text);
+    result = await sendRedditMessage(token, recipientUsername, text, subject);
   } else if (platform === 'facebook') {
     result = await sendFacebookMessage(token, recipientUsername, text);
   } else {

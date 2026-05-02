@@ -32,6 +32,16 @@ export default function MessagesTab({ lead, niche, onSend, onLeadUpdate, platfor
     if (!draft.trim()) return;
     setSendErr(null);
 
+    const text = draft;
+
+    /** Persists the message locally and advances the UI. */
+    const recordLocally = async (errMsg?: string) => {
+      const updated = await onSend(lead, text);
+      onLeadUpdate(updated);
+      setDraft('');
+      if (errMsg) setSendErr(errMsg);
+    };
+
     // For social platforms, attempt to send via backend API
     if (isSocialPlatform && platformConnected) {
       try {
@@ -41,33 +51,23 @@ export default function MessagesTab({ lead, niche, onSend, onLeadUpdate, platfor
           body: JSON.stringify({
             platform: lead.platform.toLowerCase(),
             recipientUsername: lead.author,
-            text: draft,
+            text,
           }),
         });
         const body = await res.json() as { ok?: boolean; error?: string; message?: string };
         if (!res.ok) {
-          // Record locally even if platform delivery failed
-          const updated = await onSend(lead, draft);
-          onLeadUpdate(updated);
-          setDraft('');
-          setSendErr(body.message || body.error || `Could not deliver via ${platformLabel} (${res.status}). Message recorded.`);
+          await recordLocally(body.message || body.error || `Could not deliver via ${platformLabel} (${res.status}). Message recorded.`);
           return;
         }
       } catch (err) {
         // Network error — fall through to local-only record
         console.error('[MessagesTab] Failed to reach messaging API:', err);
-        const updated = await onSend(lead, draft);
-        onLeadUpdate(updated);
-        setDraft('');
-        setSendErr(`Could not reach the server. Message recorded locally only.`);
+        await recordLocally(`Could not reach the server. Message recorded locally only.`);
         return;
       }
     }
 
-    // Always persist locally
-    const updated = await onSend(lead, draft);
-    onLeadUpdate(updated);
-    setDraft('');
+    await recordLocally();
   };
 
   return (
