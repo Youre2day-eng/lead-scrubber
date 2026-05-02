@@ -29,7 +29,17 @@ interface SettingsViewProps {
 type Tab = 'pipeline' | 'connections' | 'sources' | 'goals' | 'auto-contact';
 
 export default function SettingsView({ stages, onChange, onSave, targetUrls, onSaveUrls, goals, onSaveGoals, stageMessages, onSaveStageMessages }: SettingsViewProps) {
-  const [tab, setTab] = useState<Tab>('goals');
+  // If redirected back from an OAuth callback, default to the connections tab
+  const initialTab = (() => {
+    try {
+      const p = new URLSearchParams(window.location.search);
+      if (p.get('tab') === 'connections') return 'connections' as Tab;
+    } catch {
+      // window.location may be unavailable in SSR/test environments. Default to 'goals'.
+    }
+    return 'goals' as Tab;
+  })();
+  const [tab, setTab] = useState<Tab>(initialTab);
 
   const swap = (i: number, j: number) => {
     const next = [...stages];

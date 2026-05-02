@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useAuth } from './hooks/useAuth';
 import { useConfig } from './hooks/useConfig';
 import { useLeads } from './hooks/useLeads';
+import { useSocialConnections } from './hooks/useSocialConnections';
 import type { IntentFilter, Lead, SavedLead, ViewType } from './types';
 import Header from './components/layout/Header';
 import DashboardView from './components/dashboard/DashboardView';
@@ -25,6 +26,7 @@ export default function App() {
   const { user, loading, logout, refresh } = useAuth();
   const { savedLeads, saveLead, updateStage, deleteLead, sendMessage, addDocument, sendDocument } = useLeads(user as any);
   const { pipelineStages, agents, targetUrls, stageMessages, goals, forms, setPipelineStages, saveStages, saveAgents, saveUrls, saveStageMessages, saveGoals, saveForms } = useConfig(user as any);
+  const { connections } = useSocialConnections();
 
   const handleSaveLead = async (lead: Lead) => {
     await saveLead(lead);
@@ -32,6 +34,11 @@ export default function App() {
   };
 
   const handleStageChange = (leadId: string, stage: string) => updateStage(leadId, stage, { stageMessages });
+
+  // Resolve the connection state for the currently selected lead's platform
+  const selectedLeadConnection = selectedLead
+    ? connections[selectedLead.platform?.toLowerCase() as keyof typeof connections] as import('./types').SocialConnectionState | undefined
+    : undefined;
 
   if (loading) return (<div className="min-h-screen flex items-center justify-center bg-slate-50"><Loader2 className="w-6 h-6 animate-spin text-slate-400" /></div>);
   if (!user) return <LoginView onAuthed={refresh} />;
@@ -94,6 +101,7 @@ export default function App() {
           onSendMessage={sendMessage}
           onAddDocument={addDocument}
           onSendDocument={sendDocument}
+          platformConnection={selectedLeadConnection}
         />
       )}
     </div>
