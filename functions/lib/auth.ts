@@ -6,6 +6,9 @@
 export interface AuthEnv {
   LEADS: KVNamespace;
   AUTH_SECRET?: string;
+  RESEND_API_KEY?: string;
+  RESEND_FROM_EMAIL?: string;
+  SITE_URL?: string;
 }
 
 export interface SessionUser { uid: string; email: string; tier?: string; }

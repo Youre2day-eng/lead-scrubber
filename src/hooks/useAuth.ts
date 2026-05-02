@@ -42,5 +42,17 @@ export function useAuth() {
     setUser(null);
   }, []);
 
-  return { user, loading, signup, login, logout, refresh };
+  const forgotPassword = useCallback(async (email: string) => {
+    const r = await fetch('/api/auth/forgot-password', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email }) });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || ('HTTP ' + r.status));
+  }, []);
+
+  const resetPassword = useCallback(async (token: string, password: string) => {
+    const r = await fetch('/api/auth/reset-password', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token, password }) });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || ('HTTP ' + r.status));
+  }, []);
+
+  return { user, loading, signup, login, logout, refresh, forgotPassword, resetPassword };
 }
