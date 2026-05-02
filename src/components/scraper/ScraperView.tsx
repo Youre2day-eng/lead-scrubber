@@ -1,8 +1,8 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useMemo } from 'react';
 import { Activity, AlertCircle, Settings as SettingsIcon, Users, Loader2, Inbox, Megaphone, List, MapPin } from 'lucide-react';
 import { useScraper } from '../../hooks/useScraper';
 import LeadCard from './LeadCard';
-import type { TargetUrl, AuthUser, Lead, LeadIntent } from '../../types';
+import type { IntentFilter, TargetUrl, AuthUser, Lead, LeadIntent } from '../../types';
 
 interface Props {
   user?: AuthUser;
@@ -11,7 +11,14 @@ interface Props {
   onGoToSettings: () => void;
   onSaveLead: (lead: Lead) => void;
   sessionSavedIds: Set<string>;
-  onNicheChange?: (niche: string) => void;
+  niche: string;
+  onNicheChange: (niche: string) => void;
+  keywords: string;
+  onKeywordsChange: (keywords: string) => void;
+  location: string;
+  onLocationChange: (location: string) => void;
+  filter: IntentFilter;
+  onFilterChange: (filter: IntentFilter) => void;
 }
 
 const SELLING_RX = /\b\[?for hire\]?\b|\bi (offer|provide|do|build|sell|design|run)\b|\bwe (offer|provide|sell|build|design)\b|\bdm me\b|\bmessage me\b|\bservices? (include|offered|available)\b|\bavailable for (hire|work|projects)\b|\baccepting (clients|new clients|projects|work)\b|\bportfolio\b|\brate(s)?:?\s*\$|\$\d+\s*\/\s*(hr|hour|month|project)\b|\bstarting at \$\d+|\bbook (a|me|now)\b|\bmy (services?|website|portfolio|rates?)\b|\bcheck out my\b|\bopen (for|to) (work|commissions|projects)\b|\btaking (orders|commissions|clients)\b/i;
@@ -29,8 +36,6 @@ function fallbackIntent(text: string): LeadIntent {
   }
   return 'neutral';
 }
-
-type IntentFilter = 'all' | 'buying' | 'selling';
 
 function detectPlatform(url: string): 'reddit' | 'facebook' | 'instagram' | 'linkedin' | 'other' {
   const u = (url || '').toLowerCase();
@@ -53,16 +58,8 @@ const PLATFORM_ORDER: Array<'reddit' | 'facebook' | 'instagram' | 'linkedin' | '
   'reddit', 'facebook', 'instagram', 'linkedin', 'other',
 ];
 
-export function ScraperView({ targetUrls, onSaveUrls, onGoToSettings, onSaveLead, sessionSavedIds, onNicheChange }: Props) {
-  const [niche, setNiche] = useState('');
-  const [keywords, setKeywords] = useState('ISO, looking for, any recommendations');
-  const [location, setLocation] = useState('');
-  const [filter, setFilter] = useState<IntentFilter>('buying');
+export function ScraperView({ targetUrls, onSaveUrls, onGoToSettings, onSaveLead, sessionSavedIds, niche, onNicheChange, keywords, onKeywordsChange, location, onLocationChange, filter, onFilterChange }: Props) {
   const { leads, status, errorMsg, runScraper } = useScraper();
-
-  useEffect(() => {
-    if (onNicheChange) onNicheChange(niche);
-  }, [niche, onNicheChange]);
 
   const isUrlOn = (u: TargetUrl): boolean => u.enabled !== false;
 
@@ -155,11 +152,11 @@ export function ScraperView({ targetUrls, onSaveUrls, onGoToSettings, onSaveLead
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1.5">Your Niche / Service</label>
-            <input type="text" value={niche} onChange={e => setNiche(e.target.value)} placeholder="e.g. Graphic Designer, Plumber" className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" required />
+            <input type="text" value={niche} onChange={e => onNicheChange(e.target.value)} placeholder="e.g. Graphic Designer, Plumber" className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" required />
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1.5">Target Keywords</label>
-            <textarea value={keywords} onChange={e => setKeywords(e.target.value)} rows={3} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            <textarea value={keywords} onChange={e => onKeywordsChange(e.target.value)} rows={3} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
             <p className="text-xs text-slate-500 mt-1">Comma-separated phrases to look for in posts.</p>
           </div>
           <div>
@@ -167,7 +164,7 @@ export function ScraperView({ targetUrls, onSaveUrls, onGoToSettings, onSaveLead
               <MapPin className="w-3.5 h-3.5 text-slate-500" /> Location
               <span className="text-xs text-slate-400 font-normal ml-1">(optional)</span>
             </label>
-            <input type="text" value={location} onChange={e => setLocation(e.target.value)} placeholder="e.g. Austin, TX or Denver, NYC" className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            <input type="text" value={location} onChange={e => onLocationChange(e.target.value)} placeholder="e.g. Austin, TX or Denver, NYC" className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
             <p className="text-xs text-slate-500 mt-1">Filter posts by city / region (comma-separated for multiple).</p>
           </div>
           <div>
@@ -226,9 +223,9 @@ export function ScraperView({ targetUrls, onSaveUrls, onGoToSettings, onSaveLead
               {isRunning && <span className="text-xs text-blue-600 flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" /> Scrubbing…</span>}
             </div>
             <div className="flex items-center gap-2 mb-4 border-b border-slate-100 pb-3 flex-wrap">
-              <button onClick={() => setFilter('buying')} className={'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition ' + (filter === 'buying' ? 'bg-green-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200')}><Inbox className="w-3.5 h-3.5" /> Buyers <span className="opacity-75">({counts.buying})</span></button>
-              <button onClick={() => setFilter('selling')} className={'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition ' + (filter === 'selling' ? 'bg-orange-500 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200')}><Megaphone className="w-3.5 h-3.5" /> Sellers <span className="opacity-75">({counts.selling})</span></button>
-              <button onClick={() => setFilter('all')} className={'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition ' + (filter === 'all' ? 'bg-slate-700 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200')}><List className="w-3.5 h-3.5" /> All <span className="opacity-75">({counts.all})</span></button>
+              <button onClick={() => onFilterChange('buying')} className={'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition ' + (filter === 'buying' ? 'bg-green-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200')}><Inbox className="w-3.5 h-3.5" /> Buyers <span className="opacity-75">({counts.buying})</span></button>
+              <button onClick={() => onFilterChange('selling')} className={'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition ' + (filter === 'selling' ? 'bg-orange-500 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200')}><Megaphone className="w-3.5 h-3.5" /> Sellers <span className="opacity-75">({counts.selling})</span></button>
+              <button onClick={() => onFilterChange('all')} className={'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition ' + (filter === 'all' ? 'bg-slate-700 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200')}><List className="w-3.5 h-3.5" /> All <span className="opacity-75">({counts.all})</span></button>
               <span className="text-xs text-slate-400 ml-auto">{filter === 'buying' ? 'People asking for / hiring this service' : filter === 'selling' ? 'People offering this service' : 'All posts'}</span>
             </div>
             {filteredLeads.length === 0 ? (

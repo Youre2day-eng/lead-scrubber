@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useAuth } from './hooks/useAuth';
 import { useConfig } from './hooks/useConfig';
 import { useLeads } from './hooks/useLeads';
-import type { Lead, SavedLead, ViewType } from './types';
+import type { IntentFilter, Lead, SavedLead, ViewType } from './types';
 import Header from './components/layout/Header';
 import DashboardView from './components/dashboard/DashboardView';
 import ScraperView from './components/scraper/ScraperView';
@@ -19,6 +19,9 @@ export default function App() {
   const [selectedLead, setSelectedLead] = useState<SavedLead | null>(null);
   const [sessionSavedIds, setSessionSavedIds] = useState<Set<string>>(new Set());
   const [niche, setNiche] = useState('');
+  const [scraperKeywords, setScraperKeywords] = useState('ISO, looking for, any recommendations');
+  const [scraperLocation, setScraperLocation] = useState('');
+  const [scraperFilter, setScraperFilter] = useState<IntentFilter>('buying');
   const { user, loading, logout, refresh } = useAuth();
   const { savedLeads, saveLead, updateStage, deleteLead, sendMessage, addDocument, sendDocument } = useLeads(user as any);
   const { pipelineStages, agents, targetUrls, stageMessages, goals, forms, setPipelineStages, saveStages, saveAgents, saveUrls, saveStageMessages, saveGoals, saveForms } = useConfig(user as any);
@@ -47,7 +50,14 @@ export default function App() {
             onGoToSettings={() => setActiveView('settings')}
             onSaveLead={handleSaveLead}
             sessionSavedIds={sessionSavedIds}
+            niche={niche}
             onNicheChange={setNiche}
+            keywords={scraperKeywords}
+            onKeywordsChange={setScraperKeywords}
+            location={scraperLocation}
+            onLocationChange={setScraperLocation}
+            filter={scraperFilter}
+            onFilterChange={setScraperFilter}
           />
         )}
         {activeView === 'pipeline' && (
