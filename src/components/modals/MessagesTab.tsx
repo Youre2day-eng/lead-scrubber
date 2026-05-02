@@ -1,41 +1,98 @@
-import { Info, Plus, Send } from 'lucide-react';
+import { AlertTriangle, Info, Plus, Send } from 'lucide-react';
 import { useState } from 'react';
 import { SMART_TEMPLATES } from '../../constants';
-import type { SavedLead } from '../../types';
+import type { SavedLead, SocialConnectionState } from '../../types';
+
+const SOCIAL_PLATFORMS = new Set(['facebook', 'instagram', 'threads', 'reddit']);
 
 interface MessagesTabProps {
   lead: SavedLead;
   niche: string;
   onSend: (lead: SavedLead, text: string) => Promise<SavedLead>;
   onLeadUpdate: (lead: SavedLead) => void;
+  /** Connection state for the lead's platform, if it's a social platform. */
+  platformConnection?: SocialConnectionState;
 }
 
-export default function MessagesTab({ lead, niche, onSend, onLeadUpdate }: MessagesTabProps) {
+export default function MessagesTab({ lead, niche, onSend, onLeadUpdate, platformConnection }: MessagesTabProps) {
   const [draft, setDraft] = useState('');
+  const [sendErr, setSendErr] = useState<string | null>(null);
 
   const applyTemplate = (text: string) =>
     setDraft(text.replace('{name}', lead.author).replace('{niche}', niche || 'your services'));
 
-  const handleSend = async () => {
-    if (!draft.trim()) return;
-    const updated = await onSend(lead, draft);
-    onLeadUpdate(updated);
-    setDraft('');
-  };
+  const isSocialPlatform = SOCIAL_PLATFORMS.has(lead.platform?.toLowerCase());
+  const platformConnected = isSocialPlatform ? (platformConnection?.connected && !platformConnection?.expired) : true;
 
   const platformLabel = lead.platform
     ? lead.platform.charAt(0).toUpperCase() + lead.platform.slice(1)
     : 'the platform';
 
+  const handleSend = async () => {
+    if (!draft.trim()) return;
+    setSendErr(null);
+
+    // For social platforms, attempt to send via backend API
+    if (isSocialPlatform && platformConnected) {
+      try {
+        const res = await fetch('/api/messaging/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            platform: lead.platform.toLowerCase(),
+            recipientUsername: lead.author,
+            text: draft,
+          }),
+        });
+        const body = await res.json() as { ok?: boolean; error?: string; message?: string };
+        if (!res.ok) {
+          // Record locally even if platform delivery failed
+          const updated = await onSend(lead, draft);
+          onLeadUpdate(updated);
+          setDraft('');
+          setSendErr(body.message || body.error || `Could not deliver via ${platformLabel} (${res.status}). Message recorded.`);
+          return;
+        }
+      } catch (err) {
+        // Network error — fall through to local-only record
+        console.error('[MessagesTab] Failed to reach messaging API:', err);
+        const updated = await onSend(lead, draft);
+        onLeadUpdate(updated);
+        setDraft('');
+        setSendErr(`Could not reach the server. Message recorded locally only.`);
+        return;
+      }
+    }
+
+    // Always persist locally
+    const updated = await onSend(lead, draft);
+    onLeadUpdate(updated);
+    setDraft('');
+  };
+
   return (
     <div className="flex flex-col h-full">
-      <div className="mb-3 flex items-start gap-2 text-xs text-slate-600 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2.5">
-        <Info className="w-3.5 h-3.5 text-blue-500 shrink-0 mt-0.5" />
-        <span>
-          Messages are saved here as a record. To actually reach <strong>{lead.author}</strong>, copy your message and send it directly on <strong>{platformLabel}</strong>
-          {lead.groupName ? ` (via "${lead.groupName}")` : ''}.
-        </span>
-      </div>
+      {/* Connection status banner */}
+      {isSocialPlatform && !platformConnected ? (
+        <div className="mb-3 flex items-start gap-2 text-sm bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5">
+          <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+          <span className="text-amber-800">
+            <strong>{platformLabel} not connected.</strong> Messages will be recorded here but won't be delivered until you{' '}
+            <a href="/settings?tab=connections" className="underline font-semibold text-amber-700">connect your {platformLabel} account</a>.
+          </span>
+        </div>
+      ) : (
+        <div className="mb-3 flex items-start gap-2 text-xs text-slate-600 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2.5">
+          <Info className="w-3.5 h-3.5 text-blue-500 shrink-0 mt-0.5" />
+          <span>
+            {isSocialPlatform
+              ? <>Messages will be sent to <strong>{lead.author}</strong> via your connected <strong>{platformLabel}</strong> account and recorded here.</>
+              : <>Messages are saved here as a record. To reach <strong>{lead.author}</strong>, copy your message and send it directly on <strong>{platformLabel}</strong>{lead.groupName ? ` (via "${lead.groupName}")` : ''}.</>
+            }
+          </span>
+        </div>
+      )}
+
       <div className="flex-1 bg-slate-50 rounded-xl border border-slate-200 p-4 mb-4 overflow-y-auto space-y-3 min-h-[200px]">
         {!lead.messages || lead.messages.length === 0 ? (
           <div className="text-center text-slate-400 mt-10 text-sm">
@@ -50,6 +107,12 @@ export default function MessagesTab({ lead, niche, onSend, onLeadUpdate }: Messa
           ))
         )}
       </div>
+
+      {sendErr && (
+        <div className="mb-3 flex items-start gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+          <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" /> {sendErr}
+        </div>
+      )}
 
       <div>
         <div className="flex gap-2 mb-2 overflow-x-auto pb-1">
@@ -75,7 +138,8 @@ export default function MessagesTab({ lead, niche, onSend, onLeadUpdate }: Messa
             disabled={!draft.trim()}
             className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded-lg transition-all flex items-center gap-2 disabled:opacity-50"
           >
-            <Send className="w-4 h-4" /> Send Message
+            <Send className="w-4 h-4" />
+            {isSocialPlatform && platformConnected ? `Send via ${platformLabel}` : 'Record Message'}
           </button>
         </div>
       </div>

@@ -8,6 +8,7 @@ export type AgentStepType = 'send_message' | 'send_document' | 'move_stage' | 'w
 export type UrlType = 'facebook' | 'linkedin' | 'custom';
 export type LeadIntent = 'buying' | 'selling' | 'neutral';
 export type IntentFilter = 'all' | 'buying' | 'selling';
+export type SocialPlatform = 'facebook' | 'instagram' | 'threads' | 'reddit';
 
 export interface AuthUser { uid: string; email: string | null; displayName?: string | null; }
 
@@ -25,7 +26,7 @@ export interface Lead {
   intent?: LeadIntent;
 }
 
-export interface LeadMessage { id: string; text: string; date: string; type: 'outbound' | 'inbound'; auto?: boolean; }
+export interface LeadMessage { id: string; text: string; date: string; type: 'outbound' | 'inbound'; auto?: boolean; platformSent?: boolean; platformError?: string; }
 
 export interface LeadDocument { id: string; type: DocumentType; name: string; status: DocumentStatus; date: string; sentAt?: string; }
 
@@ -81,4 +82,22 @@ export interface AppConfig {
   stageMessages?: Record<string, StageMessage>;
   goals?: Goals;
   forms?: IntakeForm[];
+}
+
+/** Connection state for a single social platform */
+export interface SocialConnectionState {
+  connected: boolean;
+  username?: string;
+  connectedAt?: string;
+  expiresAt?: string | null;
+  expired?: boolean;
+}
+
+/** Full connections payload returned by GET /api/connections */
+export interface ConnectionsPayload {
+  apify: { connected: boolean; username?: string; savedAt?: string };
+  facebook: SocialConnectionState;
+  instagram: SocialConnectionState;
+  threads: SocialConnectionState;
+  reddit: SocialConnectionState;
 }

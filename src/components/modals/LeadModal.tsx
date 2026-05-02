@@ -1,6 +1,6 @@
 import { FileText, Mail, X } from 'lucide-react';
 import { useState } from 'react';
-import type { LeadDocument, PipelineStage, SavedLead } from '../../types';
+import type { LeadDocument, PipelineStage, SavedLead, SocialConnectionState } from '../../types';
 import DocumentsTab from './DocumentsTab';
 import MessagesTab from './MessagesTab';
 
@@ -13,10 +13,12 @@ interface LeadModalProps {
   onSendMessage: (lead: SavedLead, text: string) => Promise<SavedLead>;
   onAddDocument: (lead: SavedLead, type: LeadDocument['type']) => Promise<SavedLead>;
   onSendDocument: (lead: SavedLead, docId: string) => Promise<SavedLead>;
+  /** Connection state for the lead's platform (if it's a social platform). */
+  platformConnection?: SocialConnectionState;
 }
 
 export default function LeadModal({
-  lead, stages, niche, onClose, onLeadUpdate, onSendMessage, onAddDocument, onSendDocument,
+  lead, stages, niche, onClose, onLeadUpdate, onSendMessage, onAddDocument, onSendDocument, platformConnection,
 }: LeadModalProps) {
   const [activeTab, setActiveTab] = useState<'messages' | 'documents'>('messages');
   const stageName = stages.find((s) => s.id === lead.stage)?.title ?? lead.stage;
@@ -78,7 +80,7 @@ export default function LeadModal({
 
             <div className="flex-1 p-6 overflow-y-auto">
               {activeTab === 'messages' ? (
-                <MessagesTab lead={lead} niche={niche} onSend={onSendMessage} onLeadUpdate={onLeadUpdate} />
+                <MessagesTab lead={lead} niche={niche} onSend={onSendMessage} onLeadUpdate={onLeadUpdate} platformConnection={platformConnection} />
               ) : (
                 <DocumentsTab lead={lead} onAddDocument={onAddDocument} onSendDocument={onSendDocument} onLeadUpdate={onLeadUpdate} />
               )}

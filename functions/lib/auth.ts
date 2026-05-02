@@ -9,6 +9,11 @@ export interface AuthEnv {
   RESEND_API_KEY?: string;
   RESEND_FROM_EMAIL?: string;
   SITE_URL?: string;
+  // Social OAuth credentials
+  FACEBOOK_APP_ID?: string;
+  FACEBOOK_APP_SECRET?: string;
+  REDDIT_CLIENT_ID?: string;
+  REDDIT_CLIENT_SECRET?: string;
 }
 
 export interface SessionUser { uid: string; email: string; tier?: string; }
