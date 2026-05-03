@@ -1,5 +1,6 @@
 import { FileText, Mail } from 'lucide-react';
 import type { PipelineStage, SavedLead } from '../../types';
+import { platformAbbr } from '../../lib/platform';
 
 interface LeadKanbanCardProps {
   lead: SavedLead;
@@ -18,7 +19,7 @@ export default function LeadKanbanCard({ lead, stages, onOpen, onStageChange, on
       <div className="flex justify-between items-start mb-2">
         <h4 className="font-bold text-slate-800 text-sm">{lead.author}</h4>
         <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider bg-slate-100 px-1.5 py-0.5 rounded">
-          {lead.platform.includes('Facebook') ? 'FB' : 'Threads'}
+          {platformAbbr(lead.platform)}
         </span>
       </div>
 

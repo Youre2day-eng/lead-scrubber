@@ -92,6 +92,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   const errorMessages = Array.from(new Set(errorItems.map((it: any) => it?.errorDescription || it?.error).filter(Boolean))).slice(0, 3);
 
   const keywords: string[] = record?.keywords || [];
+  const niche: string = record?.niche || '';
   let saved = 0;
   let skipped = 0;
   for (const it of items) {
@@ -99,7 +100,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     if (!post) { skipped++; continue; }
     const key = userKey(user.uid, 'lead:' + (await hashUrl(post.url)));
     if (await env.LEADS.get(key)) { skipped++; continue; }
-    const score = scoreIntent(post.text || '', keywords);
+    const score = scoreIntent(post.text || '', keywords, niche);
     const intent = detectIntent(post.text || '');
     const lead = {
       id: key,

@@ -107,9 +107,20 @@ export function ScraperView({ targetUrls, onSaveUrls, onGoToSettings, onSaveLead
     const tokens = loc.split(/[,;|]+/).map(s => s.trim()).filter(Boolean);
     if (tokens.length === 0) return taggedLeads;
     return taggedLeads.filter(l => {
-      const hay = ((l as any).city || '') + ' ' + (l.text || '') + ' ' + (l.groupName || '');
+      const anyL = l as any;
+      // `group` is the field stored by the backend (e.g. "r/Seattle"); also
+      // check `groupName` for leads from older storage formats.
+      const hay = (anyL.city || '') + ' ' + (l.text || '') + ' ' + (anyL.group || '') + ' ' + (l.groupName || '');
       const lower = hay.toLowerCase();
-      return tokens.some(t => lower.includes(t));
+      return tokens.some(t => {
+        // Short tokens (≤3 chars) like state abbreviations ("wa", "tx") must
+        // match as whole words to avoid false positives ("want", "swap" etc.).
+        if (t.length <= 3) {
+          const re = new RegExp('\\b' + t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'i');
+          return re.test(lower);
+        }
+        return lower.includes(t);
+      });
     });
   }, [taggedLeads, location]);
 

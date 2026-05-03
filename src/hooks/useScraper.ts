@@ -10,8 +10,13 @@ export function useScraper() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [errorMsg, setErrorMsg] = useState('');
   const pollRef = useRef<number | null>(null);
+  // Tracks whether a user-triggered scrape is in progress so the background
+  // refresh interval does not overwrite leads mid-scrape (Bug 4 fix).
+  const scrapingRef = useRef(false);
 
   const fetchLeads = useCallback(async () => {
+    // Skip background refresh while a scrape is running to keep counts stable.
+    if (scrapingRef.current) return 0;
     try {
       const res = await fetch(LIST_URL, { headers: { 'Accept': 'application/json' } });
       if (!res.ok) throw new Error('HTTP ' + res.status);
@@ -42,6 +47,7 @@ export function useScraper() {
       setStatus(count > 0 ? 'complete' : 'idle');
       return;
     }
+    scrapingRef.current = true;
     setStatus('scraping');
     setLeads([]);
 
@@ -70,6 +76,7 @@ export function useScraper() {
       }
 
       if (runs.length === 0) {
+        scrapingRef.current = false;
         setStatus('error');
         return;
       }
@@ -102,9 +109,11 @@ export function useScraper() {
         }
       }
 
+      scrapingRef.current = false;
       const count = await fetchLeads();
       setStatus(count > 0 ? 'complete' : 'idle');
     } catch (err) {
+      scrapingRef.current = false;
       const msg = err instanceof Error ? err.message : 'Scrape failed.';
       setErrorMsg(msg);
       setStatus('error');
