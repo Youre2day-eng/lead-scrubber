@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { Agent, PipelineStage } from '../../types';
+import type { Agent, AgentTemplate, PipelineStage } from '../../types';
 import AgentEditor from './AgentEditor';
 import AgentList from './AgentList';
 
@@ -21,6 +21,28 @@ export default function AgentsView({ agents, stages, onSaveAgent, onDeleteAgent 
     steps: [{ id: crypto.randomUUID(), type: 'send_message', templateId: '1' }],
   });
 
+  const cloneTemplate = (template: AgentTemplate) => {
+    // Deep-clone and assign new ids so edited copies don't clash with templates
+    const reId = (steps: AgentTemplate['steps']): Agent['steps'] =>
+      steps.map((s) => ({
+        ...s,
+        id: crypto.randomUUID(),
+        replyBranch: s.replyBranch ? reId(s.replyBranch) : undefined,
+        timeoutBranch: s.timeoutBranch ? reId(s.timeoutBranch) : undefined,
+        thenBranch: s.thenBranch ? reId(s.thenBranch) : undefined,
+        elseBranch: s.elseBranch ? reId(s.elseBranch) : undefined,
+        loopBodySteps: s.loopBodySteps ? reId(s.loopBodySteps) : undefined,
+      }));
+
+    setEditingAgent({
+      id: crypto.randomUUID(),
+      name: template.name,
+      trigger: template.trigger,
+      isActive: false,
+      steps: reId(template.steps),
+    });
+  };
+
   const handleSave = (agent: Agent) => {
     onSaveAgent(agent);
     setEditingAgent(null);
@@ -38,6 +60,7 @@ export default function AgentsView({ agents, stages, onSaveAgent, onDeleteAgent 
         editingId={editingAgent?.id ?? null}
         onSelect={(a) => setEditingAgent({ ...a })}
         onCreate={createEmpty}
+        onUseTemplate={cloneTemplate}
       />
       {editingAgent && (
         <AgentEditor
