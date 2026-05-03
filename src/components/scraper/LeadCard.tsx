@@ -1,5 +1,6 @@
 import { Bookmark, Check, MessageCircle, Users } from 'lucide-react';
 import type { Lead } from '../../types';
+import { platformLabel } from '../../lib/platform';
 
 interface LeadCardProps {
   lead: Lead;
@@ -8,6 +9,7 @@ interface LeadCardProps {
 }
 
 export default function LeadCard({ lead, isSaved, onSave }: LeadCardProps) {
+  const isFacebook = (lead.platform || '').toLowerCase().includes('facebook');
   return (
     <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
       {lead.urgency === 'High' && (
@@ -25,12 +27,12 @@ export default function LeadCard({ lead, isSaved, onSave }: LeadCardProps) {
             <h3 className="font-bold text-slate-800">{lead.author}</h3>
             <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
               <span className="text-blue-600 bg-blue-50 px-2 py-0.5 rounded flex items-center gap-1">
-                {lead.platform === 'Facebook Group' ? (
+                {isFacebook ? (
                   <Users className="w-3 h-3" />
                 ) : (
                   <MessageCircle className="w-3 h-3" />
                 )}
-                {lead.platform === 'Facebook Group' ? lead.groupName : 'Threads'}
+                {isFacebook ? (lead.groupName || platformLabel(lead.platform)) : platformLabel(lead.platform)}
               </span>
               <span>• {lead.timeAgo}</span>
             </div>

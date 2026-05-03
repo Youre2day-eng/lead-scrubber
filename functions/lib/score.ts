@@ -108,7 +108,7 @@ const SELLING_SIGNALS: Array<[RegExp, number]> = [
   [/\baffordable rates?\b/i, 2],
 ];
 
-export function scoreIntent(text: string, keywords: string[] = []): number {
+export function scoreIntent(text: string, keywords: string[] = [], niche?: string): number {
   if (!text) return 0;
   let score = 0;
   for (const phrase of BUYER_PHRASES) if (phrase.test(text)) score += 10;
@@ -118,7 +118,25 @@ export function scoreIntent(text: string, keywords: string[] = []): number {
     const k = kw.toLowerCase().trim();
     if (k && lower.includes(k)) score += 15;
   }
-  return Math.min(100, score);
+  score = Math.min(100, score);
+
+  // Niche-relevance gate: if a niche is specified and neither the niche term
+  // nor any of the user-provided keywords appear in the post, the post is
+  // off-topic. Apply an 80 % penalty so it never surfaces as a high-priority lead.
+  if (niche && niche.trim()) {
+    const nicheNorm = niche.trim().toLowerCase();
+    const nicheInText = lower.includes(nicheNorm);
+    const keywordInText = keywords.some(kw => {
+      if (!kw) return false;
+      const k = kw.toLowerCase().trim();
+      return k.length > 0 && lower.includes(k);
+    });
+    if (!nicheInText && !keywordInText) {
+      score = Math.round(score * 0.2);
+    }
+  }
+
+  return score;
 }
 
 export type LeadIntent = 'buying' | 'selling' | 'neutral';

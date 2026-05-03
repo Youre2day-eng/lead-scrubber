@@ -57,7 +57,7 @@ async function fetchRedditNative(url: string): Promise<any[] | null> {
   } catch { return null; }
 }
 
-async function persistRedditPosts(env: Env, uid: string, posts: any[], keywords: string[], sourceUrl: string): Promise<{ runId: string; saved: number; skipped: number; total: number }> {
+async function persistRedditPosts(env: Env, uid: string, posts: any[], keywords: string[], sourceUrl: string, niche?: string): Promise<{ runId: string; saved: number; skipped: number; total: number }> {
   const runId = 'reddit_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
   let saved = 0;
   let skipped = 0;
@@ -65,7 +65,7 @@ async function persistRedditPosts(env: Env, uid: string, posts: any[], keywords:
     if (!p.text || String(p.text).trim().length < 3) { skipped++; continue; }
     const leadKey = userKey(uid, 'lead:' + (await hashUrl(p.url)));
     if (await env.LEADS.get(leadKey)) { skipped++; continue; }
-    const score = scoreIntent(p.text, keywords);
+    const score = scoreIntent(p.text, keywords, niche);
     const intent = detectIntent(p.text);
     const lead = {
       id: leadKey,
@@ -85,7 +85,7 @@ async function persistRedditPosts(env: Env, uid: string, posts: any[], keywords:
     await env.LEADS.put(leadKey, JSON.stringify(lead), { metadata: { score, intent, ingestedAt: lead.ingestedAt } });
     saved++;
   }
-  const record = { runId, datasetId: '', actor: 'reddit-native', sourceUrl, status: 'SUCCEEDED', keywords, startedAt: new Date().toISOString(), ingested: saved, total: posts.length, skipped };
+  const record = { runId, datasetId: '', actor: 'reddit-native', sourceUrl, status: 'SUCCEEDED', keywords, niche, startedAt: new Date().toISOString(), ingested: saved, total: posts.length, skipped };
   await env.LEADS.put(userKey(uid, 'run:' + runId), JSON.stringify(record), { expirationTtl: 60*60*24*30 });
   return { runId, saved, skipped, total: posts.length };
 }
@@ -95,17 +95,18 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   if (userOrResp instanceof Response) return userOrResp;
   const user = userOrResp;
 
-  let body: { url?: string; actor?: string; keywords?: string[] };
+  let body: { url?: string; actor?: string; keywords?: string[]; niche?: string };
   try { body = await request.json(); } catch { return json({ error: 'invalid json' }, 400); }
   const url = (body.url || '').trim();
   if (!url) return json({ error: 'url required' }, 400);
   const keywords = body.keywords || [];
+  const niche = (body.niche || '').trim();
 
   // Reddit: try native first
   if (isRedditUrl(url)) {
     const posts = await fetchRedditNative(url);
     if (posts && posts.length > 0) {
-      const r = await persistRedditPosts(env, user.uid, posts, keywords, url);
+      const r = await persistRedditPosts(env, user.uid, posts, keywords, url, niche);
       return json({ ok: true, runId: r.runId, datasetId: '', actor: 'reddit-native', status: 'SUCCEEDED', ingested: r.saved, total: r.total });
     }
     const token = await getApifyToken(env, user.uid);
@@ -114,7 +115,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     const input: Record<string, unknown> = { startUrls: [{ url }], maxItems: 50, maxPostCount: 50 };
     try {
       const run = await startRun(token, actor, input);
-      const record = { runId: run.id, datasetId: run.defaultDatasetId, actor, sourceUrl: url, status: run.status, keywords, startedAt: new Date().toISOString(), ingested: 0 };
+      const record = { runId: run.id, datasetId: run.defaultDatasetId, actor, sourceUrl: url, status: run.status, keywords, niche, startedAt: new Date().toISOString(), ingested: 0 };
       await env.LEADS.put(userKey(user.uid, 'run:' + run.id), JSON.stringify(record), { expirationTtl: 60*60*24*30 });
       return json({ ok: true, runId: run.id, datasetId: run.defaultDatasetId, actor, status: run.status });
     } catch (e: any) {
@@ -129,7 +130,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   const input: Record<string, unknown> = { startUrls: [{ url }], keywords, maxItems: 100 };
   try {
     const run = await startRun(token, actor, input);
-    const record = { runId: run.id, datasetId: run.defaultDatasetId, actor, sourceUrl: url, status: run.status, keywords, startedAt: new Date().toISOString(), ingested: 0 };
+    const record = { runId: run.id, datasetId: run.defaultDatasetId, actor, sourceUrl: url, status: run.status, keywords, niche, startedAt: new Date().toISOString(), ingested: 0 };
     await env.LEADS.put(userKey(user.uid, 'run:' + run.id), JSON.stringify(record), { expirationTtl: 60*60*24*30 });
     return json({ ok: true, runId: run.id, datasetId: run.defaultDatasetId, actor, status: run.status });
   } catch (e: any) {
